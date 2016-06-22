@@ -1,13 +1,13 @@
 package models
 
-// generated with gopkg.in/reform.v1
+// generated with gopkg.in/reform.v2-unstable
 
 import (
 	"fmt"
 	"strings"
 
-	"gopkg.in/reform.v1"
-	"gopkg.in/reform.v1/parse"
+	"gopkg.in/reform.v2-unstable"
+	"gopkg.in/reform.v2-unstable/parse"
 )
 
 type personTable struct {

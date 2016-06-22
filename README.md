@@ -1,4 +1,4 @@
-# reform [![GoDoc](https://godoc.org/gopkg.in/reform.v1?status.svg)](https://godoc.org/gopkg.in/reform.v1) [![Build Status](https://travis-ci.org/go-reform/reform.svg?branch=v1-stable)](https://travis-ci.org/go-reform/reform) [![Coverage Status](https://coveralls.io/repos/github/go-reform/reform/badge.svg?branch=v1-stable)](https://coveralls.io/github/go-reform/reform?branch=v1-stable) [![Go Report Card](https://goreportcard.com/badge/gopkg.in/reform.v1)](https://goreportcard.com/report/gopkg.in/reform.v1)
+# reform [![GoDoc](https://godoc.org/gopkg.in/reform.v2-unstable?status.svg)](https://godoc.org/gopkg.in/reform.v2-unstable) [![Build Status](https://travis-ci.org/go-reform/reform.svg?branch=v2-unstable)](https://travis-ci.org/go-reform/reform) [![Coverage Status](https://coveralls.io/repos/github/go-reform/reform/badge.svg?branch=v2-unstable)](https://coveralls.io/github/go-reform/reform?branch=v2-unstable) [![Go Report Card](https://goreportcard.com/badge/gopkg.in/reform.v2-unstable)](https://goreportcard.com/report/gopkg.in/reform.v2-unstable)
 
 A better ORM for Go.
 
@@ -8,7 +8,7 @@ as opposed to type system sidestepping, `interface{}` and runtime reflection. It
 
 ## Quickstart
 
-1. Install it: `go get github.com/gopkg.in/reform.v1/reform` (see about versioning below)
+1. Install it: `go get github.com/gopkg.in/reform.v2-unstable/reform` (see about versioning below)
 2. Define your first model in file `person.go`:
 
     ```go
@@ -30,7 +30,7 @@ as opposed to type system sidestepping, `interface{}` and runtime reflection. It
 
 3. Run `reform [package or directory]` or `go generate [package or file]`. This will create `person_reform.go`
    in the same package with type `PersonTable` and methods on `Person`.
-4. See [documentation](https://godoc.org/gopkg.in/reform.v1) how to use it. Simple example:
+4. See [documentation](https://godoc.org/gopkg.in/reform.v2-unstable) how to use it. Simple example:
 
     ```go
 	// Use reform.NewDB to create DB.

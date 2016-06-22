@@ -5,7 +5,7 @@ import (
 
 	"github.com/AlekSi/pointer"
 
-	"gopkg.in/reform.v1"
+	"gopkg.in/reform.v2-unstable"
 )
 
 //go:generate reform

@@ -9,9 +9,9 @@ import (
 
 	"github.com/AlekSi/pointer"
 
-	"gopkg.in/reform.v1"
-	"gopkg.in/reform.v1/dialects/postgresql"
-	. "gopkg.in/reform.v1/internal/test/models"
+	"gopkg.in/reform.v2-unstable"
+	"gopkg.in/reform.v2-unstable/dialects/postgresql"
+	. "gopkg.in/reform.v2-unstable/internal/test/models"
 )
 
 func Example() {

@@ -1,8 +1,8 @@
 // Package sqlite3 implements reform.Dialect for SQLite3.
-package sqlite3 // import "gopkg.in/reform.v1/dialects/sqlite3"
+package sqlite3 // import "gopkg.in/reform.v2-unstable/dialects/sqlite3"
 
 import (
-	"gopkg.in/reform.v1"
+	"gopkg.in/reform.v2-unstable"
 )
 
 type sqlite3 struct{}

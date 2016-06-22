@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"gopkg.in/reform.v1/parse"
+	"gopkg.in/reform.v2-unstable/parse"
 )
 
 var (
