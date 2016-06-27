@@ -1,12 +1,12 @@
-# a derivative of reform
+# A derivative of "reform"
 
-This's a derivative of a great project "[reform](https://github.com/go-reform/reform)". Please look at the upstream code first.
+This's a derivative of a beautiful project "[reform](https://github.com/go-reform/reform)". Please look at the upstream code first.
 
-This project just adds some functionality to the upstream ORM.
+This project just adds some functionality to the upstream ORM. You shouldn't use this fork unless you want to use this functionality.
 
 ## Quick start
 
-1. Create a model
+`1`. Create a model
 
 ```
 mkdir -p $GOPATH/test/{models,bin}
@@ -30,13 +30,13 @@ EOF
 * Magic comment `//go:generate` forces command `go generate` to run `reform`.
 * Magic comment `//reform:raw_records` forces to use table `raw_records` for the model.
 
-2. Generate ORM-related code by `reform`:
+`2`. Generate ORM-related code by `reform`:
 
 ```
 reform $GOPATH/test/models
 ```
 
-3. Create a controller for this model
+`3`. Create a controller for this model
 
 ```
 cat > $GOPATH/test/bin/bin.go << EOF
@@ -76,7 +76,7 @@ func main() {
 EOF
 ```
 
-4. Create the table
+`4`. Create the table
 
 ```
 cd $GOPATH/test
@@ -84,17 +84,25 @@ sqlite3 db 'CREATE TABLE raw_records (id INTEGER PRIMARY KEY AUTOINCREMENT, crea
 ```
 
 
-5. Download dependencies
+`5`. Download dependencies
 
 ```
 cd bin
 go get
 ```
 
-6. Run
+`6`. Run
 
 ```
 go run bin.go
+```
+
+Expected result is:
+```
+$ go run bin.go
+SQL: 2016/06/27 14:11:52 >>> SELECT "raw_records"."id", "raw_records"."created_at", "raw_records"."sensor_id", "raw_records"."channel_id", "raw_records"."raw_value" FROM "raw_records"
+SQL: 2016/06/27 14:11:52 <<< SELECT "raw_records"."id", "raw_records"."created_at", "raw_records"."sensor_id", "raw_records"."channel_id", "raw_records"."raw_value" FROM "raw_records"  622.785µs
+records: [Id: 1 (int), CreatedAt: 2016-06-27 11:11:34 +0000 UTC (time.Time), SensorId: -1 (int), ChannelId: -1 (int), RawValue: 1 (int)]
 ```
 
 ## Troubleshooting
