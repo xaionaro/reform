@@ -4,6 +4,9 @@ This's a derivative of a beautiful project "[reform](https://github.com/go-refor
 
 This project just adds some functionality to the upstream ORM. You shouldn't use this fork unless you want to use this functionality.
 
+Added functionality:
+* `ModelName.Select()` — a wrapper for SelectRows() and NextRow(): it makes a query and collects the result into a slice. See example below.
+
 ## Quick start
 
 `1`. Create a model
