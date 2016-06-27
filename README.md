@@ -30,13 +30,7 @@ EOF
 * Magic comment `//go:generate` forces command `go generate` to run `reform`.
 * Magic comment `//reform:raw_records` forces to use table `raw_records` for the model.
 
-`2`. Generate ORM-related code by `reform`:
-
-```
-reform $GOPATH/test/models
-```
-
-`3`. Create a controller for this model
+`2`. Create a controller for this model
 
 ```
 cat > $GOPATH/test/bin/bin.go << EOF
@@ -76,7 +70,7 @@ func main() {
 EOF
 ```
 
-`4`. Create the table
+`3`. Create the table
 
 ```
 cd $GOPATH/test
@@ -84,11 +78,18 @@ sqlite3 db 'CREATE TABLE raw_records (id INTEGER PRIMARY KEY AUTOINCREMENT, crea
 ```
 
 
-`5`. Download dependencies
+`4`. Download dependencies
 
 ```
 cd bin
 go get
+go get github.com/xaionaro/reform
+```
+
+`5`. Generate ORM-related code by `reform`:
+
+```
+reform $GOPATH/test/models
 ```
 
 `6`. Run
