@@ -6,6 +6,12 @@ This project just adds some functionality to the upstream ORM. You shouldn't use
 
 Added functionality:
 * `ModelName.Select()` — a wrapper for SelectRows() and NextRow(): it makes a query and collects the result into a slice. See example below.
+* `ModelName.First()` — the same as Select() but return only one record as structure (not as slice of structures)
+* `ModelName.Order()` — creates a scope to be used by Select() or First() with predefined order
+* `object.Delete()` — deletes and object using it's primary key
+* `object.Insert()` — saves new object properties
+* `object.Update()` — updates object properties using it's primary key
+* `object.Save()` — saves new object if primary key is zeroed or updates object properties using it's primary key if it's not zeroed
 
 ## Quick start
 
@@ -108,6 +114,13 @@ SQL: 2016/06/27 14:11:52 >>> SELECT "raw_records"."id", "raw_records"."created_a
 SQL: 2016/06/27 14:11:52 <<< SELECT "raw_records"."id", "raw_records"."created_at", "raw_records"."sensor_id", "raw_records"."channel_id", "raw_records"."raw_value" FROM "raw_records"  622.785µs
 records: [Id: 1 (int), CreatedAt: 2016-06-27 11:11:34 +0000 UTC (time.Time), SensorId: -1 (int), ChannelId: -1 (int), RawValue: 1 (int)]
 ```
+
+## More examples
+
+See more examples here:
+
+* [https://devel.mephi.ru/dyokunev/dc-thermal-logger/src/master/server/httpsite/app/init.go](https://devel.mephi.ru/dyokunev/dc-thermal-logger/src/master/server/httpsite/app/init.go)
+* [https://devel.mephi.ru/dyokunev/dc-thermal-logger/src/master/server/httpsite/app/controllers/Dashboard.go](https://devel.mephi.ru/dyokunev/dc-thermal-logger/src/master/server/httpsite/app/controllers/Dashboard.go)
 
 ## Troubleshooting
 

@@ -52,6 +52,7 @@ func processFile(path, file, pack string) error {
 		// decide about view/table suffix
 		t := strings.ToLower(str.Type[0:1]) + str.Type[1:]
 		v := str.Type
+		s := str.Type
 		if str.IsTable() {
 			t += "Table"
 			v += "Table"
@@ -60,10 +61,13 @@ func processFile(path, file, pack string) error {
 			v += "View"
 		}
 		t += "Type"
+		s += "Scope"
 
 		sd := StructData{
 			StructInfo:	 str,
 			TableType:	 t,
+			ScopeType:	 s,
+			FilterType:	 strings.ToUpper(str.Type[0:1]) + str.Type[1:] + "Filter",
 			TableVar:	 v,
 			IsPrivateStruct: str.Type[0:1] == strings.ToLower(str.Type[0:1]),
 			QuerierVar:	 strings.ToUpper(str.Type[0:1]) + str.Type[1:],
