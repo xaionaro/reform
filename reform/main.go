@@ -59,11 +59,14 @@ func processFile(path, file, pack string) error {
 			t += "View"
 			v += "View"
 		}
+		t += "Type"
 
 		sd := StructData{
-			StructInfo: str,
-			TableType:  t,
-			TableVar:   v,
+			StructInfo:	 str,
+			TableType:	 t,
+			TableVar:	 v,
+			IsPrivateStruct: str.Type[0:1] == strings.ToLower(str.Type[0:1]),
+			QuerierVar:	 strings.ToUpper(str.Type[0:1]) + str.Type[1:],
 		}
 		sds = append(sds, sd)
 

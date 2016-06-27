@@ -8,8 +8,10 @@ import (
 
 type StructData struct {
 	parse.StructInfo
-	TableType string
-	TableVar  string
+	TableType       string
+	TableVar        string
+	IsPrivateStruct bool
+	QuerierVar      string
 }
 
 var (
@@ -101,6 +103,41 @@ func (s *{{ .Type }}) View() reform.View {
 	return {{ .TableVar }}
 }
 
+// Select is a wrapper for SelectRows() and NextRow(): it makes a query and collects the result into a slice
+func (s *{{ .Type }}) Select(db *reform.DB, args ...interface{}) (result []{{.Type}}, err error) {
+	var tail string
+
+	if len(args) > 0 {
+		switch arg := args[0].(type) {
+		case string:
+			tail = arg
+			args = args[1:]
+		case {{ .Type }}:
+			err = fmt.Errorf("This case is not implemented yet.")
+			return
+		default:
+			err = fmt.Errorf("Invalid first element of \"args\". It should be a string or {{ .Type }}.")
+			return
+		}
+	}
+
+	rows, err := db.SelectRows({{ .TableVar }}, tail, args...)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	for {
+		err := db.NextRow(s, rows)
+		if err != nil {
+			break
+		}
+		result = append(result, *s)
+	}
+
+	return
+}
+
 {{- if .IsTable }}
 
 // Table returns Table object for that record.
@@ -136,8 +173,8 @@ func (s *{{ .Type }}) SetPK(pk interface{}) {
 
 {{- end }}
 
-// check interfaces
 var (
+	// check interfaces
 	_ reform.View   = {{ .TableVar }}
 	_ reform.Struct = new({{ .Type }})
 {{- if .IsTable }}
@@ -145,7 +182,13 @@ var (
 	_ reform.Record = new({{ .Type }})
 {{- end }}
 	_ fmt.Stringer   = new({{ .Type }})
+{{- if .IsPrivateStruct }}
+
+	// querier
+	{{ .QuerierVar }} = {{ .Type }}{} // Should be read only
+{{- end }}
 )
+
 `))
 
 	initTemplate = template.Must(template.New("init").Parse(`

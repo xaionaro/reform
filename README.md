@@ -1,124 +1,102 @@
-# reform [![GoDoc](https://godoc.org/gopkg.in/reform.v1?status.svg)](https://godoc.org/gopkg.in/reform.v1) [![Build Status](https://travis-ci.org/go-reform/reform.svg?branch=v1-stable)](https://travis-ci.org/go-reform/reform) [![Coverage Status](https://coveralls.io/repos/github/go-reform/reform/badge.svg?branch=v1-stable)](https://coveralls.io/github/go-reform/reform?branch=v1-stable) [![Go Report Card](https://goreportcard.com/badge/gopkg.in/reform.v1)](https://goreportcard.com/report/gopkg.in/reform.v1)
+# a derivative of reform
 
-A better ORM for Go.
+This's a derivative of a great project "[reform](https://github.com/go-reform/reform)". Please look at the upstream code first.
 
-It uses non-empty interfaces, code generation (`go generate`) and initialization-time reflection
-as opposed to `interface{}`, type system sidestepping and runtime reflection. It will be kept simple.
+This project just adds some functionality to the upstream ORM.
 
+## Quick start
 
-## Quickstart
+1. Create a model
 
-1. Install it: `go get gopkg.in/reform.v1/reform` (see about versioning below)
-2. Define your first model in file `person.go`:
+```
+mkdir -p $GOPATH/test/{models,bin}
+cat > $GOPATH/test/models/RawRecord.go << EOF
+package models
 
-    ```go
-    //go:generate reform
+import "time"
+//go:generate reform
 
-    //reform:people
-	Person struct {
-		ID        int32      `reform:"id,pk"`
-		Name      string     `reform:"name"`
-		Email     *string    `reform:"email"`
-		CreatedAt time.Time  `reform:"created_at"`
-		UpdatedAt *time.Time `reform:"updated_at"`
-	}
-    ```
-
-    Magic comment `//reform:people` links this model to `people` table or view in SQL database.
-    First value in `reform` tag is a column name. `pk` marks primary key.
-    Use pointers for nullable fields.
-
-3. Run `reform [package or directory]` or `go generate [package or file]`. This will create `person_reform.go`
-   in the same package with type `PersonTable` and methods on `Person`.
-4. See [documentation](https://godoc.org/gopkg.in/reform.v1) how to use it. Simple example:
-
-    ```go
-	// Use reform.NewDB to create DB.
-
-	// Save record (performs INSERT or UPDATE).
-	person := &Person{
-		Name:  "Alexey Palazhchenko",
-		Email: pointer.ToString("alexey.palazhchenko@gmail.com"),
-	}
-	if err := DB.Save(person); err != nil {
-		log.Fatal(err)
-	}
-
-	// ID is filled by Save.
-	person2, err := DB.FindByPrimaryKeyFrom(PersonTable, person.ID)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println(person2.(*Person).Name)
-
-	// Delete record.
-	if err = DB.Delete(person); err != nil {
-		log.Fatal(err)
-	}
-
-	// Find records by IDs.
-	persons, err := DB.FindAllFrom(PersonTable, "id", 1, 2)
-	if err != nil {
-		log.Fatal(err)
-	}
-	for _, p := range persons {
-		fmt.Println(p)
-	}
-    ```
-
-
-## Background
-
-reform was born during summer 2014 out of frustrations with existing Go ORMs. All of them have a method
-`Save(record interface{})` which can be used like this:
-
-```go
-orm.Save(User{Name: "gopher"})
-orm.Save(&User{Name: "gopher"})
-orm.Save(nil)
-orm.Save("Batman!!")
+//reform:raw_records
+type rawRecord struct {
+	Id        int       \`reform:"id,pk"\`
+	CreatedAt time.Time \`reform:"created_at"\`
+	SensorId  int       \`reform:"sensor_id"\`
+	ChannelId int       \`reform:"channel_id"\`
+	RawValue  int       \`reform:"raw_value"\`
+}
+EOF
 ```
 
-Now you can say that last invocation is obviously invalid, and that it's not hard to make an ORM to accept both
-first and second versions. But there are two problems:
+* Magic comment `//go:generate` forces command `go generate` to run `reform`.
+* Magic comment `//reform:raw_records` forces to use table `raw_records` for the model.
 
-1. Compiler can't check it. Method's signature in `godoc` will not tell us how to use it.
-   We are essentially working against those tools by sidestepping type system.
-2. First version is still invalid, since one would expect `Save()` method to set record's primary key after `INSERT`,
-   but this change will be lost due to passing by value.
+2. Generate ORM-related code by `reform`:
 
-First proprietary version of reform was used in production even before `go generate` announcement.
-This free and open-source version is the fourth milestone on the road to better and idiomatic API.
-
-
-## Versioning policy
-
-We are following [Semantic Versioning](http://semver.org/spec/v2.0.0.html),
-using [gopkg.in](https://gopkg.in) and filling a [changelog](CHANGELOG.md).
-
-We use branch `v1-stable` (default on Github) for v1 development and tags `v1.Y.Z` for releases.
-All v1 releases are SemVer-compatible, breaking changes will not be applied.
-Canonical import path is `gopkg.in/reform.v1`.
-`go get -u gopkg.in/reform.v1` will install latest released version.
-To install not yet released v1 version one can do checkout manually while preserving import path:
 ```
-go get -u gopkg.in/reform.v1
-cd $GOPATH/gopkg.in/reform.v1
-git checkout origin/v1-stable
+reform $GOPATH/test/models
 ```
 
-Branch `v2-unstable` is used for v2 development. It doesn't have any releases yet, and no compatibility is guaranteed.
-Canonical import path is `gopkg.in/reform.v2-unstable`.
+3. Create a controller for this model
+
+```
+cat > $GOPATH/test/bin/bin.go << EOF
+package main
+
+import (
+        "log"
+
+        "fmt"
+
+        "database/sql"
+        "gopkg.in/reform.v1"
+        "gopkg.in/reform.v1/dialects/sqlite3"
+
+        "../models"
+)
+
+func main() {
+        simpleDB, err := sql.Open("sqlite3", "../db")
+        if err != nil {
+                panic(fmt.Errorf("Cannot connect to DB: %s", err.Error()))
+        }
+
+        logger := log.New(os.Stderr, "SQL: ", log.Flags())
+
+        db := reform.NewDB(simpleDB, sqlite3.Dialect, reform.NewPrintfLogger(logger.Printf))
+
+        rawRecords,err := models.RawRecord.Select(db)
+        if err != nil {
+                panic(fmt.Errorf("ORM error: %s", err.Error()))
+        }
+
+        fmt.Printf("records: %v\n", rawRecords)
+
+        return
+}
+EOF
+```
+
+4. Create the table
+
+```
+cd $GOPATH/test
+sqlite3 db 'CREATE TABLE raw_records (id INTEGER PRIMARY KEY AUTOINCREMENT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, sensor_id SMALLINT DEFAULT -1, channel_id SMALLINT DEFAULT -1, raw_value SMALLINT DEFAULT -1); INSERT INTO raw_records (raw_value) VALUES (1)'
+```
 
 
-## Additional packages
+5. Download dependencies
 
-* [github.com/AlekSi/pointer](https://github.com/AlekSi/pointer) is very useful for working with reform structs with pointers.
-* [github.com/mc2soft/pq-types](https://github.com/mc2soft/pq-types) is a collection of PostgreSQL types, we use it with reform.
+```
+cd bin
+go get
+```
 
+6. Run
 
-## Caveats
+```
+go run bin.go
+```
 
-* There should be zero `pk` fields for Struct and exactly one `pk` field for Record.
-* `pk` field can't be a pointer (`== nil` [doesn't work](https://golang.org/doc/faq#nil_error)).
-* Database row can't have a Go's zero value (0, empty string, etc.) in primary key column.
+## Troubleshooting
+
+1. Select() returns empty slice while it shouldn't. Probably there's a conversion problem. For example at the moment this ORM (at least this fork) doesn't work with NULL-valued "int"-s. You may try to print err.Error() before "break" line of Select() function in your `……_reform.go` file.
