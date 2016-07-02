@@ -67,7 +67,9 @@ func main() {
 
         db := reform.NewDB(simpleDB, sqlite3.Dialect, reform.NewPrintfLogger(logger.Printf))
 
-        rawRecords,err := models.RawRecord.Select(db)
+        models.RawRecord.SetDefaultDB(db)
+
+        rawRecords,err := models.RawRecord.Select()
         if err != nil {
                 panic(fmt.Errorf("ORM error: %s", err.Error()))
         }

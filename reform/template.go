@@ -37,7 +37,11 @@ type {{ .TableType }} struct {
 
 type {{ .ScopeType }} struct {
 	{{ .Type }}
-	order []string
+
+	db       *reform.DB
+	where [][]interface{}
+	order   []string
+	limit     int
 }
 
 type {{ .FilterType }} {{ .Type }}
@@ -118,12 +122,37 @@ func (s *{{ .Type }}) View() reform.View {
 
 // Generate a scope for object
 func (s *{{ .Type }}) Scope() *{{ .ScopeType }} {
-	return &{{ .ScopeType }}{ {{ .Type }}: *s }
+	return &{{ .ScopeType }}{ {{ .Type }}: *s, db: defaultDB_{{ .Type }} }
+}
+
+// Sets DB to do queries
+func (s *{{ .Type }}) DB(db *reform.DB) (scope *{{ .ScopeType }}) { return s.Scope().DB(db) }
+func (s *{{ .ScopeType }}) DB(db *reform.DB) *{{ .ScopeType }} {
+	s.db = db
+	return s
+}
+
+// Sets default DB (to do not call the scope.DB() method every time)
+func (s *{{ .Type }}) SetDefaultDB(db *reform.DB) (err error) {
+	defaultDB_{{ .Type }} = db
+	return nil
+}
+
+
+// Compiles SQL tail for defined limit scope
+// TODO: should be compiled via dialects
+func (s *{{ .ScopeType }}) getLimitTail() (tail string, args []interface{}, err error) {
+	if s.limit <= 0 {
+		return
+	}
+
+	tail = fmt.Sprintf("%v", s.limit)
+	return
 }
 
 // Compiles SQL tail for defined order scope
 // TODO: should be compiled via dialects
-func (s *{{ .ScopeType }}) getOrderTail(db *reform.DB) (tail string, args []interface{}, err error) {
+func (s *{{ .ScopeType }}) getOrderTail() (tail string, args []interface{}, err error) {
 	var fieldName string
 	var orderStringParts []string
 
@@ -145,7 +174,7 @@ func (s *{{ .ScopeType }}) getOrderTail(db *reform.DB) (tail string, args []inte
 
 // Compiles SQL tail for defined filter
 // TODO: should be compiled via dialects
-func (s *{{ .ScopeType }}) getWhereTail(db *reform.DB, filter {{ .FilterType }}) (tail string, whereTailArgs []interface{}, err error) {
+func (s *{{ .ScopeType }}) getWhereTailForFilter(filter {{ .FilterType }}) (tail string, whereTailArgs []interface{}, err error) {
 	var whereTailStringParts []string
 
 	sample := {{ .Type }}(filter)
@@ -155,7 +184,7 @@ func (s *{{ .ScopeType }}) getWhereTail(db *reform.DB, filter {{ .FilterType }})
 
 	numField := v.NumField()
 
-	counter := 0
+	placeholderCounter := 0
 	for i := 0; i < numField; i++ {
 		f  := v.Field(i)
 		fT := f.Type()
@@ -164,11 +193,11 @@ func (s *{{ .ScopeType }}) getWhereTail(db *reform.DB, filter {{ .FilterType }})
 			continue
 		}
 
-		s  := vT.Field(i)
-		rN := s.Tag.Get("reform")
+		vs  := vT.Field(i)
+		rN := vs.Tag.Get("reform")
 
-		counter++
-		whereTailStringParts = append(whereTailStringParts, rN+" = "+db.Dialect.Placeholder(counter)) // TODO: escape field name
+		placeholderCounter++
+		whereTailStringParts = append(whereTailStringParts, rN+" = "+s.db.Dialect.Placeholder(placeholderCounter)) // TODO: escape field name
 		whereTailArgs        = append(whereTailArgs, f.Interface())
 	}
 
@@ -177,14 +206,84 @@ func (s *{{ .ScopeType }}) getWhereTail(db *reform.DB, filter {{ .FilterType }})
 	return
 }
 
-// Compiles SQL tail for defined order scope and filter
+// parseQuerierArgs considers different ways of defning the tail (using scope properties or/and in_args)
+func (s *{{ .ScopeType }}) parseWhereTailComponent(in_args []interface{}) (tail string, args []interface{}, err error) {
+	if len(in_args) > 0 {
+		switch arg := in_args[0].(type) {
+		case string:
+			tail = arg
+			args = in_args[1:]
+			return
+		case {{ .Type }}:
+			if len(in_args) > 1 {
+				s = s.Where(in_args[1:]...)
+			}
+			tail, args, err = s.getWhereTailForFilter({{ .FilterType }}(arg))
+		case {{ .FilterType }}:
+			if len(in_args) > 1 {
+				s = s.Where(in_args[1:]...)
+			}
+			tail, args, err = s.getWhereTailForFilter(arg)
+		default:
+			err = fmt.Errorf("Invalid first element of \"in_args\" (%v). It should be a string or {{ .FilterType }}.", reflect.ValueOf(arg).Type().Name())
+			return
+		}
+	}
+
+	return
+}
+
+// Compiles SQL tail for defined filter
 // TODO: should be compiled via dialects
-func (s *{{ .ScopeType }}) compileTailUsingFilter(db *reform.DB, filter {{ .FilterType }} ) (tail string, args []interface{}, err error) {
-	whereTailString, whereTailArgs, err := s.getWhereTail(db, filter)
+func (s *{{ .ScopeType }}) getWhereTail() (tail string, whereTailArgs []interface{}, err error) {
+	var whereTailStringParts []string
+
+	if len(s.where) == 0 {
+		return
+	}
+
+	for _,whereComponent := range s.where {
+		var whereTailStringPart string
+		var whereTailArgsPart []interface{}
+
+		whereTailStringPart, whereTailArgsPart, err = s.parseWhereTailComponent(whereComponent)
+		if err != nil {
+			return
+		}
+
+		if len(whereTailStringPart) > 0 {
+			whereTailStringParts = append(whereTailStringParts, whereTailStringPart)
+		}
+		whereTailArgs = append(whereTailArgs, whereTailArgsPart...)
+	}
+
+	if len(whereTailStringParts) == 0 {
+		return
+	}
+
+	tail = "(" + strings.Join(whereTailStringParts, ") AND (") + ")"
+
+	return
+}
+
+func (s *{{ .ScopeType }}) Where(in_args ...interface{}) *{{ .ScopeType }} {
+	s.where = append(s.where, in_args)
+	return s
+}
+
+// Compiles SQL tail for defined db/where/order/limit scope
+// TODO: should be compiled via dialects
+func (s *{{ .ScopeType }}) getTail() (tail string, args []interface{}, err error) {
+	whereTailString, whereTailArgs, err := s.getWhereTail()
+
 	if err != nil {
 		return
 	}
-	orderTailString, orderTailArgs, err := s.getOrderTail(db)
+	orderTailString, orderTailArgs, err := s.getOrderTail()
+	if err != nil {
+		return
+	}
+	limitTailString, _            , err := s.getLimitTail()
 	if err != nil {
 		return
 	}
@@ -199,58 +298,31 @@ func (s *{{ .ScopeType }}) compileTailUsingFilter(db *reform.DB, filter {{ .Filt
 		orderTailString = " ORDER BY "+orderTailString+" "
 	}
 
-	tail = whereTailString+orderTailString
-	return
-
-}
-
-// parseQuerierArgs considers different ways of defning the tail (using scope properties or/and in_args)
-func (s *{{ .ScopeType }}) parseQuerierArgs(db *reform.DB, in_args []interface{}) (tail string, args []interface{}, err error) {
-	if len(in_args) > 0 {
-		switch arg := in_args[0].(type) {
-		case string:
-			if len(s.order) > 0 {
-				err = fmt.Errorf("This case is not implemented yet. You cannot use Order() and string tail argument in one request.")
-				return
-			}
-			tail = arg
-			args = in_args[1:]
-		case {{ .Type }}:
-			if len(args) > 1 {
-				err = fmt.Errorf("Too many arguments.")
-				return
-			}
-			tail, args, err = s.compileTailUsingFilter(db, {{ .FilterType }}(arg))
-		case {{ .FilterType }}:
-			if len(args) > 1 {
-				err = fmt.Errorf("Too many arguments.")
-				return
-			}
-			tail, args, err = s.compileTailUsingFilter(db, arg)
-		default:
-			err = fmt.Errorf("Invalid first element of \"args\". It should be a string or {{ .FilterType }}.")
-		}
+	if len(limitTailString) > 0 {
+		limitTailString = " LIMIT "+limitTailString+" "
 	}
 
+	tail = whereTailString+orderTailString+limitTailString
 	return
+
 }
 
 // Select is a wrapper for SelectRows() and NextRow(): it makes a query and collects the result into a slice
-func (s *{{ .Type }}) Select(db *reform.DB, args ...interface{}) (result []{{.Type}}, err error) { return s.Scope().Select(db, args...) }
-func (s *{{ .ScopeType }}) Select(db *reform.DB, args ...interface{}) (result []{{.Type}}, err error) {
-	tail, args, err := s.parseQuerierArgs(db, args)
+func (s *{{ .Type }}) Select(args ...interface{}) (result []{{.Type}}, err error) { return s.Scope().Select(args...) }
+func (s *{{ .ScopeType }}) Select(args ...interface{}) (result []{{.Type}}, err error) {
+	tail, args, err := s.Where(args...).getTail()
 	if err != nil {
 		return
 	}
 
-	rows, err := db.SelectRows({{ .TableVar }}, tail, args...)
+	rows, err := s.db.SelectRows({{ .TableVar }}, tail, args...)
 	if err != nil {
 		return
 	}
 	defer rows.Close()
 
 	for {
-		err := db.NextRow(s, rows)
+		err := s.db.NextRow(s, rows)
 		if err != nil {
 			break
 		}
@@ -261,55 +333,84 @@ func (s *{{ .ScopeType }}) Select(db *reform.DB, args ...interface{}) (result []
 }
 
 // "First" a method to select and return only one record.
-func (s *{{ .Type }}) First(db *reform.DB, args ...interface{}) (result {{.Type}}, err error) { return s.Scope().First(db, args...) }
-func (s *{{ .ScopeType }}) First(db *reform.DB, args ...interface{}) (result {{.Type}}, err error) {
-	tail, args, err := s.parseQuerierArgs(db, args)
+func (s *{{ .Type }}) First(args ...interface{}) (result {{.Type}}, err error) { return s.Scope().First(args...) }
+func (s *{{ .ScopeType }}) First(args ...interface{}) (result {{.Type}}, err error) {
+	tail, args, err := s.Where(args...).getTail()
 	if err != nil {
 		return
 	}
 
-	err = db.SelectOneTo(&result, tail, args...)
+	err = s.db.SelectOneTo(&result, tail, args...)
 
 	return
 }
 
-// Create and Insert inserts new record to DB
-func (s *{{ .Type }}) Create(db *reform.DB) (err error) { return s.Scope().Create(db) }
-func (s *{{ .ScopeType }}) Create(db *reform.DB) (err error) {
-	return db.Insert(s)
-}
-func (s *{{ .Type }}) Insert(db *reform.DB) (err error) { return s.Scope().Insert(db) }
-func (s *{{ .ScopeType }}) Insert(db *reform.DB) (err error) {
-	return db.Insert(s)
-}
-
-// Save inserts new record to DB is PK is zero and updates existing record if PK is not zero
-func (s *{{ .Type }}) Save(db *reform.DB) (err error) { return s.Scope().Save(db) }
-func (s *{{ .ScopeType }}) Save(db *reform.DB) (err error) {
-	return db.Save(s)
-}
-
-// Update updates existing record in DB
-func (s *{{ .Type }}) Update(db *reform.DB) (err error) { return s.Scope().Update(db) }
-func (s *{{ .ScopeType }}) Update(db *reform.DB) (err error) {
-	return db.Update(s)
-}
-
-// Delete deletes existing record in DB
-func (s *{{ .Type }}) Delete(db *reform.DB) (err error) { return s.Scope().Delete(db) }
-func (s *{{ .ScopeType }}) Delete(db *reform.DB) (err error) {
-	return db.Delete(s)
-}
-
-
 // Sets order. Arguments should be passed by pairs column-{ASC,DESC}. For example Order("id", "ASC", "value" "DESC")
-func (s *{{ .Type }}) Order(args ...string) (scope *{{ .ScopeType }}) { return s.Scope().Order(args...) }
-func (s *{{ .ScopeType }}) Order(args ...string) (*{{ .ScopeType }}) {
-	s.order = args
+func (s *{{ .Type }}) Order(args ...interface{}) (scope *{{ .ScopeType }}) { return s.Scope().Order(args...) }
+func (s *{{ .ScopeType }}) Order(argsI ...interface{}) (*{{ .ScopeType }}) {
+	switch len(argsI) {
+	case 0:
+	case 1:
+		arg   := argsI[0].(string)
+		args0 := strings.Split(arg, ",")
+		var args []string
+		for _,arg0 := range args0 {
+			args = append(args, strings.Split(arg0, ":")...)
+		}
+		s.order = args
+	default:
+		var args []string
+		for _,argI := range argsI {
+			args = append(args, argI.(string))
+		}
+		s.order = args
+	}
+
+	return s
+}
+
+// Sets limit.
+func (s *{{ .Type }}) Limit(limit int) (scope *{{ .ScopeType }}) { return s.Scope().Limit(limit) }
+func (s *{{ .ScopeType }}) Limit(limit int) (*{{ .ScopeType }}) {
+	s.limit = limit
 	return s
 }
 
 {{- if .IsTable }}
+
+// "Reload" reloads record using Primary Key
+func (s *{{ .FilterType }}) Reload(db *reform.DB) error { return (*{{ .Type }})(s).Reload(db) }
+func (s *{{ .Type }}) Reload(db *reform.DB) (err error) {
+	return db.FindByPrimaryKeyTo(s, s.PKValue())
+}
+
+// Create and Insert inserts new record to DB
+func (s *{{ .Type }}) Create() (err error) { return s.Scope().Create() }
+func (s *{{ .ScopeType }}) Create() (err error) {
+	return s.db.Insert(s)
+}
+func (s *{{ .Type }}) Insert() (err error) { return s.Scope().Insert() }
+func (s *{{ .ScopeType }}) Insert() (err error) {
+	return s.db.Insert(s)
+}
+
+// Save inserts new record to DB is PK is zero and updates existing record if PK is not zero
+func (s *{{ .Type }}) Save() (err error) { return s.Scope().Save() }
+func (s *{{ .ScopeType }}) Save() (err error) {
+	return s.db.Save(s)
+}
+
+// Update updates existing record in DB
+func (s *{{ .Type }}) Update() (err error) { return s.Scope().Update() }
+func (s *{{ .ScopeType }}) Update() (err error) {
+	return s.db.Update(s)
+}
+
+// Delete deletes existing record in DB
+func (s *{{ .Type }}) Delete() (err error) { return s.Scope().Delete() }
+func (s *{{ .ScopeType }}) Delete() (err error) {
+	return s.db.Delete(s)
+}
 
 // Table returns Table object for that record.
 func (s *{{ .Type }}) Table() reform.Table {
@@ -334,6 +435,7 @@ func (s *{{ .Type }}) HasPK() bool {
 }
 
 // SetPK sets record primary key.
+func (s *{{ .FilterType }}) SetPK(pk interface{}) { (*{{ .Type }})(s).SetPK(pk) }
 func (s *{{ .Type }}) SetPK(pk interface{}) {
 	if i64, ok := pk.(int64); ok {
 		s.{{ .PKField.Name }} = {{ .PKField.Type }}(i64)
@@ -358,6 +460,7 @@ var (
 	// querier
 	{{ .QuerierVar }} = {{ .Type }}{} // Should be read only
 {{- end }}
+	defaultDB_{{ .Type }} *reform.DB
 )
 
 `))
