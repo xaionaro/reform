@@ -94,7 +94,7 @@ sqlite3 db 'CREATE TABLE raw_records (id INTEGER PRIMARY KEY AUTOINCREMENT, crea
 ```
 cd bin
 go get
-go get github.com/xaionaro/reform
+go get github.com/xaionaro/reform/reform
 ```
 
 `5`. Generate ORM-related code by `reform`:
