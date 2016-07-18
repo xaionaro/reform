@@ -71,6 +71,7 @@ func processFile(path, file, pack string) error {
 			ScopeType:	 s,
 			FilterType:	 strings.ToUpper(str.Type[0:1]) + str.Type[1:] + "Filter",
 			TableVar:	 v,
+			LogTableVar:	 v+"LogRow",
 			IsPrivateStruct: str.Type[0:1] == strings.ToLower(str.Type[0:1]),
 			QuerierVar:	 strings.ToUpper(str.Type[0:1]) + str.Type[1:],
 		}

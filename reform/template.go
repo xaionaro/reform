@@ -13,6 +13,7 @@ type StructData struct {
 	ScopeType	string
 	FilterType	string
 	TableVar        string
+	LogTableVar     string
 	IsPrivateStruct bool
 	QuerierVar      string
 }
@@ -142,8 +143,8 @@ func (v *{{ .LogTableType }}) PKColumnIndex() uint {
 
 {{- end }}
 
-var {{ .TableVar }} = &{{ .LogTableType }} {
-	s: {{ printf "%#v" .StructInfo.ToLog }},
+var {{ .LogTableVar }} = &{{ .LogTableType }} {
+	s: {{ printf "%#v" .StructInfo.ToLog.UnPointer }},
 	z: new({{ .LogType }}).Values(),
 }
 
@@ -151,6 +152,13 @@ var {{ .TableVar }} = &{{ .LogTableType }} {
 func (s {{ .Type }}) String() string {
 	res := make([]string, {{ len .Fields }})
 	{{- range $i, $f := .Fields }}
+	res[{{ $i }}] = "{{ $f.Name }}: " + reform.Inspect(s.{{ $f.Name }}, true)
+	{{- end }}
+	return strings.Join(res, ", ")
+}
+func (s {{ .LogType }}) String() string {
+	res := make([]string, {{ len .ToLog.Fields }})
+	{{- range $i, $f := .ToLog.Fields }}
 	res[{{ $i }}] = "{{ $f.Name }}: " + reform.Inspect(s.{{ $f.Name }}, true)
 	{{- end }}
 	return strings.Join(res, ", ")
@@ -191,6 +199,9 @@ func (s *{{ .LogType }}) Pointers() []interface{} {
 // View returns View object for that struct.
 func (s *{{ .Type }}) View() reform.View {
 	return {{ .TableVar }}
+}
+func (s *{{ .LogType }}) View() reform.View {
+	return {{ .LogTableVar }}
 }
 
 // Generate a scope for object
@@ -460,7 +471,7 @@ func (s *{{ .Type }}) Reload(db *reform.DB) (err error) {
 // Create and Insert inserts new record to DB
 func (s *{{ .Type }}) Create() (err error) { return s.Scope().Create() }
 func (s *{{ .ScopeType }}) Create() (err error) {
-	err := s.db.Insert(s)
+	err = s.db.Insert(s)
 	if err == nil {
 		s.doLog("INSERT")
 	}
@@ -468,7 +479,7 @@ func (s *{{ .ScopeType }}) Create() (err error) {
 }
 func (s *{{ .Type }}) Insert() (err error) { return s.Scope().Insert() }
 func (s *{{ .ScopeType }}) Insert() (err error) {
-	err := s.db.Insert(s)
+	err = s.db.Insert(s)
 	if err == nil {
 		s.doLog("INSERT")
 	}
@@ -478,28 +489,31 @@ func (s *{{ .ScopeType }}) Insert() (err error) {
 // Save inserts new record to DB is PK is zero and updates existing record if PK is not zero
 func (s *{{ .Type }}) Save() (err error) { return s.Scope().Save() }
 func (s *{{ .ScopeType }}) Save() (err error) {
-	err := s.db.Save(s)
+	err = s.db.Save(s)
 	if err == nil {
 		s.doLog("INSERT")
 	}
+	return err
 }
 
 // Update updates existing record in DB
 func (s *{{ .Type }}) Update() (err error) { return s.Scope().Update() }
 func (s *{{ .ScopeType }}) Update() (err error) {
-	err := s.db.Update(s)
+	err = s.db.Update(s)
 	if err == nil {
 		s.doLog("UPDATE")
 	}
+	return err
 }
 
 // Delete deletes existing record in DB
 func (s *{{ .Type }}) Delete() (err error) { return s.Scope().Delete() }
 func (s *{{ .ScopeType }}) Delete() (err error) {
-	err := s.db.Delete(s)
+	err = s.db.Delete(s)
 	if err == nil {
 		s.doLog("DELETE")
 	}
+	return err
 }
 
 func (s *{{ .ScopeType }}) doLog(requestType string) {
@@ -507,23 +521,26 @@ func (s *{{ .ScopeType }}) doLog(requestType string) {
 		return
 	}
 
-	logRow := {{ .LogType }}(s.{{.Type}})
+	var logRow {{ .LogType }}
+	logRow.{{.Type}}  = s.{{.Type}}
 	logRow.LogAuthor  = s.loggingAuthor
-	logRow.LogAction  = s.loggingAction
+	logRow.LogAction  = requestType
 	logRow.LogDate    = time.Now()
 	logRow.LogComment = s.loggingComment
 
-	err := s.db.Insert(logRow)
+	s.db.Insert(&logRow)
 }
 
 // Enables logging to table "{{ .SQLName }}_log". This table should has the same schema, except:
 // - Unique/Primary keys should be removed
 // - Should be added next fields: "log_author" (nullable string), "log_date" (timestamp), "log_action" (enum("INSERT", "UPDATE", "DELETE")), "log_comment" (string)
-func (s *{{ .Type }}) Log(enableLogging bool, author string, comment string) (scope *{{ .ScopeType }}) { return s.Scope().Log(enableLogging, author, comment) }
-func (s *{{ .ScopeType }}) Log(enableLogging bool, author string, comment string) (scope *{{ .ScopeType }}) {
+func (s *{{ .Type }}) Log(enableLogging bool, author *string, comment string) (scope *{{ .ScopeType }}) { return s.Scope().Log(enableLogging, author, comment) }
+func (s *{{ .ScopeType }}) Log(enableLogging bool, author *string, comment string) (scope *{{ .ScopeType }}) {
 	s.loggingEnabled = enableLogging
 	s.loggingAuthor  = author
 	s.loggingComment = comment
+
+	return s
 }
 
 // Table returns Table object for that record.

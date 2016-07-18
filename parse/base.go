@@ -32,6 +32,10 @@ func (s *StructInfo) Columns() []string {
 	return res
 }
 
+func (s *StructInfo) UnPointer() StructInfo {
+	return *s
+}
+
 func (s StructInfo) ToLog() *StructInfo {
 	s.SQLName += "_log"
 	s.Fields   = append(s.Fields, []FieldInfo{
