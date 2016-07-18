@@ -14,6 +14,7 @@ type (
 	//reform:people
 	Person struct {
 		ID        int32      `reform:"id,pk"`
+		GroupID   *int32     `reform:"group_id"`
 		Name      string     `reform:"name"`
 		Email     *string    `reform:"email"`
 		CreatedAt time.Time  `reform:"created_at"`
@@ -109,6 +110,19 @@ type PersonProject struct {
 type LegacyPerson struct {
 	ID   int32   `reform:"id,pk"`
 	Name *string `reform:"name"`
+}
+
+type Integer int32
+
+type String string
+
+//reform:extra
+type Extra struct {
+	ID    Integer   `reform:"id,pk"`
+	Name  *String   `reform:"name"`
+	Bytes []byte    `reform:"bytes"`
+	Byte  *byte     `reform:"byte"`
+	Array [512]byte `reform:"array"`
 }
 
 // check interfaces
