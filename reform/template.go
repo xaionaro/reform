@@ -164,11 +164,11 @@ func (s *{{ .Type }}) Values() []interface{} {
 	}
 }
 func (s *{{ .LogType }}) Values() []interface{} {
-	return append(s.Values(), []interface{}{
+	return append(s.{{ .Type }}.Values(), []interface{}{
 		s.LogAuthor,
 		s.LogDate,
 		s.LogAction,
-		s.LogAcomment,
+		s.LogComment,
 	}...)
 }
 
@@ -178,6 +178,14 @@ func (s *{{ .Type }}) Pointers() []interface{} {
 	return []interface{}{ {{- range .Fields }}
 		&s.{{ .Name }}, {{- end }}
 	}
+}
+func (s *{{ .LogType }}) Pointers() []interface{} {
+	return append(s.{{.Type}}.Pointers(), []interface{}{
+		&s.LogAuthor,
+		&s.LogDate,
+		&s.LogAction,
+		&s.LogComment,
+	}...)
 }
 
 // View returns View object for that struct.
