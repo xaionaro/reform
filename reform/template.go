@@ -2,12 +2,14 @@ package main
 
 import (
 	"text/template"
-	"gopkg.in/reform.v1/parse"
+	"github.com/xaionaro/reform/parse"
 )
 
 type StructData struct {
 	parse.StructInfo
+	LogType		string
 	TableType       string
+	LogTableType    string
 	ScopeType	string
 	FilterType	string
 	TableVar        string
@@ -23,6 +25,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	"gopkg.in/reform.v1"
 	"gopkg.in/reform.v1/parse"
@@ -30,11 +33,6 @@ import (
 `))
 
 	structTemplate = template.Must(template.New("struct").Parse(`
-type {{ .TableType }} struct {
-	s parse.StructInfo
-	z []interface{}
-}
-
 type {{ .ScopeType }} struct {
 	{{ .Type }}
 
@@ -42,11 +40,28 @@ type {{ .ScopeType }} struct {
 	where [][]interface{}
 	order   []string
 	limit     int
+
+	loggingEnabled  bool
+	loggingAuthor  *string
+	loggingComment  string
 }
 
 type {{ .FilterType }} {{ .Type }}
 
+type {{ .LogType }} struct {
+	{{ .Type }}
+	LogAuthor	*string
+	LogAction	 string
+	LogDate		 time.Time
+	LogComment	 string
+}
+
 // Schema returns a schema name in SQL database ("{{ .SQLSchema }}").
+type {{ .TableType }} struct {
+	s parse.StructInfo
+	z []interface{}
+}
+
 func (v *{{ .TableType }}) Schema() string {
 	return v.s.SQLSchema
 }
@@ -90,6 +105,48 @@ var {{ .TableVar }} = &{{ .TableType }} {
 	z: new({{ .Type }}).Values(),
 }
 
+type {{ .LogTableType }} struct {
+	s parse.StructInfo
+	z []interface{}
+}
+
+func (v *{{ .LogTableType }}) Schema() string {
+	return v.s.SQLSchema
+}
+
+func (v *{{ .LogTableType }}) Name() string {
+	return v.s.SQLName+"_log"
+}
+
+func (v *{{ .LogTableType }}) Columns() []string {
+	return {{ printf "%#v" .ToLog.Columns }}
+}
+
+func (v *{{ .LogTableType }}) NewStruct() reform.Struct {
+	return new({{ .Type }})
+}
+
+{{- if .IsTable }}
+
+func (v *{{ .LogTableType }}) NewRecord() reform.Record {
+	return new({{ .Type }})
+}
+
+func (v *{{ .LogTableType }}) NewScope() *{{ .ScopeType }} {
+	return &{{ .ScopeType }}{}
+}
+
+func (v *{{ .LogTableType }}) PKColumnIndex() uint {
+	return uint(v.s.PKFieldIndex)
+}
+
+{{- end }}
+
+var {{ .TableVar }} = &{{ .LogTableType }} {
+	s: {{ printf "%#v" .StructInfo.ToLog }},
+	z: new({{ .LogType }}).Values(),
+}
+
 // String returns a string representation of this struct or record.
 func (s {{ .Type }}) String() string {
 	res := make([]string, {{ len .Fields }})
@@ -105,6 +162,14 @@ func (s *{{ .Type }}) Values() []interface{} {
 	return []interface{}{ {{- range .Fields }}
 		s.{{ .Name }}, {{- end }}
 	}
+}
+func (s *{{ .LogType }}) Values() []interface{} {
+	return append(s.Values(), []interface{}{
+		s.LogAuthor,
+		s.LogDate,
+		s.LogAction,
+		s.LogAcomment,
+	}...)
 }
 
 // Pointers returns a slice of pointers to struct or record fields.
@@ -387,29 +452,70 @@ func (s *{{ .Type }}) Reload(db *reform.DB) (err error) {
 // Create and Insert inserts new record to DB
 func (s *{{ .Type }}) Create() (err error) { return s.Scope().Create() }
 func (s *{{ .ScopeType }}) Create() (err error) {
-	return s.db.Insert(s)
+	err := s.db.Insert(s)
+	if err == nil {
+		s.doLog("INSERT")
+	}
+	return err
 }
 func (s *{{ .Type }}) Insert() (err error) { return s.Scope().Insert() }
 func (s *{{ .ScopeType }}) Insert() (err error) {
-	return s.db.Insert(s)
+	err := s.db.Insert(s)
+	if err == nil {
+		s.doLog("INSERT")
+	}
+	return err
 }
 
 // Save inserts new record to DB is PK is zero and updates existing record if PK is not zero
 func (s *{{ .Type }}) Save() (err error) { return s.Scope().Save() }
 func (s *{{ .ScopeType }}) Save() (err error) {
-	return s.db.Save(s)
+	err := s.db.Save(s)
+	if err == nil {
+		s.doLog("INSERT")
+	}
 }
 
 // Update updates existing record in DB
 func (s *{{ .Type }}) Update() (err error) { return s.Scope().Update() }
 func (s *{{ .ScopeType }}) Update() (err error) {
-	return s.db.Update(s)
+	err := s.db.Update(s)
+	if err == nil {
+		s.doLog("UPDATE")
+	}
 }
 
 // Delete deletes existing record in DB
 func (s *{{ .Type }}) Delete() (err error) { return s.Scope().Delete() }
 func (s *{{ .ScopeType }}) Delete() (err error) {
-	return s.db.Delete(s)
+	err := s.db.Delete(s)
+	if err == nil {
+		s.doLog("DELETE")
+	}
+}
+
+func (s *{{ .ScopeType }}) doLog(requestType string) {
+	if !s.loggingEnabled {
+		return
+	}
+
+	logRow := {{ .LogType }}(s.{{.Type}})
+	logRow.LogAuthor  = s.loggingAuthor
+	logRow.LogAction  = s.loggingAction
+	logRow.LogDate    = time.Now()
+	logRow.LogComment = s.loggingComment
+
+	err := s.db.Insert(logRow)
+}
+
+// Enables logging to table "{{ .SQLName }}_log". This table should has the same schema, except:
+// - Unique/Primary keys should be removed
+// - Should be added next fields: "log_author" (nullable string), "log_date" (timestamp), "log_action" (enum("INSERT", "UPDATE", "DELETE")), "log_comment" (string)
+func (s *{{ .Type }}) Log(enableLogging bool, author string, comment string) (scope *{{ .ScopeType }}) { return s.Scope().Log(enableLogging, author, comment) }
+func (s *{{ .ScopeType }}) Log(enableLogging bool, author string, comment string) (scope *{{ .ScopeType }}) {
+	s.loggingEnabled = enableLogging
+	s.loggingAuthor  = author
+	s.loggingComment = comment
 }
 
 // Table returns Table object for that record.

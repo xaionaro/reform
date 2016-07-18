@@ -1,5 +1,5 @@
 // Package parse implements parsing of Go structs in files and runtime.
-package parse // import "gopkg.in/reform.v1/parse"
+package parse
 
 import (
 	"fmt"
@@ -30,6 +30,18 @@ func (s *StructInfo) Columns() []string {
 		res[i] = f.Column
 	}
 	return res
+}
+
+func (s StructInfo) ToLog() *StructInfo {
+	s.SQLName += "_log"
+	s.Fields   = append(s.Fields, []FieldInfo{
+		FieldInfo{ Name: "LogAuthor",  Type: "*string",   Column: "log_author"  },
+		FieldInfo{ Name: "LogAction",  Type:  "string",   Column: "log_action"  },
+		FieldInfo{ Name: "LogDate",    Type: "time.Time", Column: "log_date"    },
+		FieldInfo{ Name: "LogComment", Type:  "string",   Column: "log_comment" },
+	}...)
+
+	return &s
 }
 
 // IsTable returns true if this object represent information for table, false for view.
