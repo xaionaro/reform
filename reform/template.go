@@ -116,7 +116,7 @@ func (v *{{ .LogTableType }}) Schema() string {
 }
 
 func (v *{{ .LogTableType }}) Name() string {
-	return v.s.SQLName+"_log"
+	return v.s.SQLName
 }
 
 func (v *{{ .LogTableType }}) Columns() []string {
@@ -174,8 +174,8 @@ func (s *{{ .Type }}) Values() []interface{} {
 func (s *{{ .LogType }}) Values() []interface{} {
 	return append(s.{{ .Type }}.Values(), []interface{}{
 		s.LogAuthor,
-		s.LogDate,
 		s.LogAction,
+		s.LogDate,
 		s.LogComment,
 	}...)
 }
@@ -190,8 +190,8 @@ func (s *{{ .Type }}) Pointers() []interface{} {
 func (s *{{ .LogType }}) Pointers() []interface{} {
 	return append(s.{{.Type}}.Pointers(), []interface{}{
 		&s.LogAuthor,
-		&s.LogDate,
 		&s.LogAction,
+		&s.LogDate,
 		&s.LogComment,
 	}...)
 }
@@ -273,12 +273,19 @@ func (s *{{ .ScopeType }}) getWhereTailForFilter(filter {{ .FilterType }}) (tail
 		f  := v.Field(i)
 		fT := f.Type()
 
-		if f.Interface() == reflect.Zero(fT).Interface() {
-			continue
+		switch (fT.Kind()) {
+			case reflect.Array, reflect.Slice, reflect.Map:
+				if reflect.DeepEqual(f.Interface(), reflect.Zero(fT).Interface()) {
+					continue
+				}
+			default:
+				if f.Interface() == reflect.Zero(fT).Interface() {
+					continue
+				}
 		}
 
-		vs  := vT.Field(i)
-		rN := vs.Tag.Get("reform")
+		vs := vT.Field(i)
+		rN := strings.Split(vs.Tag.Get("reform"), ",")[0]
 
 		placeholderCounter++
 		whereTailStringParts = append(whereTailStringParts, rN+" = "+s.db.Dialect.Placeholder(placeholderCounter)) // TODO: escape field name
@@ -534,11 +541,11 @@ func (s *{{ .ScopeType }}) doLog(requestType string) {
 // Enables logging to table "{{ .SQLName }}_log". This table should has the same schema, except:
 // - Unique/Primary keys should be removed
 // - Should be added next fields: "log_author" (nullable string), "log_date" (timestamp), "log_action" (enum("INSERT", "UPDATE", "DELETE")), "log_comment" (string)
-func (s *{{ .Type }}) Log(enableLogging bool, author *string, comment string) (scope *{{ .ScopeType }}) { return s.Scope().Log(enableLogging, author, comment) }
-func (s *{{ .ScopeType }}) Log(enableLogging bool, author *string, comment string) (scope *{{ .ScopeType }}) {
+func (s *{{ .Type }}) Log(enableLogging bool, author *string, commentFormat string, commentArgs ...interface{}) (scope *{{ .ScopeType }}) { return s.Scope().Log(enableLogging, author, commentFormat, commentArgs...) }
+func (s *{{ .ScopeType }}) Log(enableLogging bool, author *string, commentFormat string, commentArgs ...interface{}) (scope *{{ .ScopeType }}) {
 	s.loggingEnabled = enableLogging
 	s.loggingAuthor  = author
-	s.loggingComment = comment
+	s.loggingComment = fmt.Sprintf(commentFormat, commentArgs...)
 
 	return s
 }
