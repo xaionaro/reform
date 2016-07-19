@@ -606,7 +606,7 @@ var (
 	initTemplate = template.Must(template.New("init").Parse(`
 func init() {
 	{{- range $i, $sd := . }}
-	parse.AssertUpToDate(&{{ $sd.TableVar }}.s, new({{ $sd.Type }}))
+	//parse.AssertUpToDate(&{{ $sd.TableVar }}.s, new({{ $sd.Type }})) // Temporary disabled (doesn't work with arbitary types like "type sliceString []string")
 	{{- end }}
 }
 `))
