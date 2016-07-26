@@ -426,7 +426,7 @@ func (s *{{ .ScopeType }}) Select(args ...interface{}) (result []{{.Type}}, err 
 // "First" a method to select and return only one record.
 func (s *{{ .Type }}) First(args ...interface{}) (result {{.Type}}, err error) { return s.Scope().First(args...) }
 func (s *{{ .ScopeType }}) First(args ...interface{}) (result {{.Type}}, err error) {
-	tail, args, err := s.Where(args...).getTail()
+	tail, args, err := s.Limit(1).Where(args...).getTail()
 	if err != nil {
 		return
 	}
