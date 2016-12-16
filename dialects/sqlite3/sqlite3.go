@@ -7,6 +7,10 @@ import (
 
 type sqlite3 struct{}
 
+func (sqlite3) String() string {
+	return "sqlite3"
+}
+
 func (sqlite3) Placeholder(index int) string {
 	return "?"
 }
@@ -25,6 +29,14 @@ func (sqlite3) QuoteIdentifier(identifier string) string {
 
 func (sqlite3) LastInsertIdMethod() reform.LastInsertIdMethod {
 	return reform.LastInsertId
+}
+
+func (sqlite3) SelectLimitMethod() reform.SelectLimitMethod {
+	return reform.Limit
+}
+
+func (sqlite3) DefaultValuesMethod() reform.DefaultValuesMethod {
+	return reform.DefaultValues
 }
 
 // Dialect implements reform.Dialect for SQLite3.

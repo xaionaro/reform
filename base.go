@@ -125,10 +125,38 @@ const (
 
 	// Returning is method using "RETURNING id" SQL syntax.
 	Returning
+
+	// OutputInserted is method using "OUTPUT INSERTED.id" SQL syntax.
+	OutputInserted
+)
+
+// SelectLimitMethod is a method of limiting the number of rows in a query result.
+type SelectLimitMethod int
+
+const (
+	// Limit is a method using "LIMIT N" SQL syntax.
+	Limit SelectLimitMethod = iota
+
+	// SelectTop is a method using "SELECT TOP N" SQL syntax.
+	SelectTop
+)
+
+// DefaultValuesMethod is a method of inserting of row with all default values.
+type DefaultValuesMethod int
+
+const (
+	// DefaultValues is a method using "DEFAULT VALUES"
+	DefaultValues DefaultValuesMethod = iota
+
+	// EmptyLists is a method using "() VALUES ()"
+	EmptyLists
 )
 
 // Dialect represents differences in various SQL dialects.
 type Dialect interface {
+	// String returns dialect name.
+	String() string
+
 	// Placeholder returns representation of placeholder parameter for given index,
 	// typically "?" or "$1".
 	Placeholder(index int) string
@@ -143,6 +171,12 @@ type Dialect interface {
 
 	// LastInsertIdMethod returns a method of receiving primary key of last inserted row.
 	LastInsertIdMethod() LastInsertIdMethod
+
+	// SelectLimitMethod returns a method of limiting the number of rows in a query result.
+	SelectLimitMethod() SelectLimitMethod
+
+	// DefaultValuesMethod returns a method of inserting of row with all default values.
+	DefaultValuesMethod() DefaultValuesMethod
 }
 
 // check interface

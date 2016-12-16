@@ -1,3 +1,4 @@
+// Package reform implements reform command.
 package main
 
 import (
@@ -9,12 +10,13 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/xaionaro/reform"
 	"github.com/xaionaro/reform/parse"
 )
 
 var (
-	DebugF = flag.Bool("debug", false, "Enable debug logging")
-	GofmtF = flag.Bool("gofmt", true, "Format with gofmt")
+	debugF = flag.Bool("debug", false, "Enable debug logging")
+	gofmtF = flag.Bool("gofmt", true, "Format with gofmt")
 
 	logger = NewLogger()
 )
@@ -54,10 +56,10 @@ func processFile(path, file, pack string) error {
 		v := str.Type
 		s := str.Type
 		if str.IsTable() {
-			t += "Table"
+			t += "TableType"
 			v += "Table"
 		} else {
-			t += "View"
+			t += "ViewType"
 			v += "View"
 		}
 		t += "Type"
@@ -90,7 +92,7 @@ func processFile(path, file, pack string) error {
 }
 
 func gofmt(path string) {
-	if *GofmtF {
+	if *gofmtF {
 		cmd := exec.Command("gofmt", "-s", "-w", path)
 		logger.Debugf(strings.Join(cmd.Args, " "))
 		b, err := cmd.CombinedOutput()
@@ -103,7 +105,7 @@ func gofmt(path string) {
 
 func main() {
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "reform - a better ORM generator\n\n")
+		fmt.Fprintf(os.Stderr, "reform - a better ORM generator. %s.\n\n", reform.Version)
 		fmt.Fprintf(os.Stderr, "Usage:\n\n")
 		fmt.Fprintf(os.Stderr, "  %s [flags] [packages or directories]\n\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  go generate [flags] [packages or files] (with '//go:generate reform' in files)\n\n")
@@ -112,7 +114,7 @@ func main() {
 	}
 	flag.Parse()
 
-	if *DebugF {
+	if *debugF {
 		logger.Debug = true
 	}
 

@@ -5,6 +5,7 @@ import (
 	"github.com/xaionaro/reform/parse"
 )
 
+// StructData represents struct info for XXX_reform.go file generation.
 type StructData struct {
 	parse.StructInfo
 	LogType		string
@@ -576,9 +577,9 @@ func (s *{{ .Type }}) HasPK() bool {
 func (s *{{ .FilterType }}) SetPK(pk interface{}) { (*{{ .Type }})(s).SetPK(pk) }
 func (s *{{ .Type }}) SetPK(pk interface{}) {
 	if i64, ok := pk.(int64); ok {
-		s.{{ .PKField.Name }} = {{ .PKField.Type }}(i64)
+		s.{{ .PKField.Name }} = {{ .PKField.PKType }}(i64)
 	} else {
-		s.{{ .PKField.Name }} = pk.({{ .PKField.Type }})
+		s.{{ .PKField.Name }} = pk.({{ .PKField.PKType }})
 	}
 }
 

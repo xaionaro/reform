@@ -20,7 +20,7 @@ func (s *ReformSuite) TestInsert() {
 	s.NotEqual(int32(0), person.ID)
 	s.Equal("", person.Name)
 	s.Equal(&newEmail, person.Email)
-	s.WithinDuration(time.Now(), person.CreatedAt, time.Second)
+	s.WithinDuration(time.Now(), person.CreatedAt, 2*time.Second)
 	s.Nil(person.UpdatedAt)
 
 	person2, err := s.q.FindByPrimaryKeyFrom(PersonTable, person.ID)
@@ -40,8 +40,8 @@ func (s *ReformSuite) TestInsertWithValues() {
 	s.NotEqual(int32(0), person.ID)
 	s.Equal("", person.Name)
 	s.Equal(&newEmail, person.Email)
-	s.WithinDuration(t, person.CreatedAt, time.Second)
-	s.WithinDuration(t, *person.UpdatedAt, time.Second)
+	s.WithinDuration(t, person.CreatedAt, 2*time.Second)
+	s.WithinDuration(t, *person.UpdatedAt, 2*time.Second)
 
 	person2, err := s.q.FindByPrimaryKeyFrom(PersonTable, person.ID)
 	s.NoError(err)
@@ -52,6 +52,8 @@ func (s *ReformSuite) TestInsertWithValues() {
 }
 
 func (s *ReformSuite) TestInsertWithPrimaryKey() {
+	setIdentityInsert(s.T(), s.q, "people", true)
+
 	newEmail := faker.Internet().Email()
 	person := &Person{ID: 50, Email: &newEmail}
 	err := s.q.Insert(person)
@@ -59,7 +61,7 @@ func (s *ReformSuite) TestInsertWithPrimaryKey() {
 	s.Equal(int32(50), person.ID)
 	s.Equal("", person.Name)
 	s.Equal(&newEmail, person.Email)
-	s.WithinDuration(time.Now(), person.CreatedAt, time.Second)
+	s.WithinDuration(time.Now(), person.CreatedAt, 2*time.Second)
 	s.Nil(person.UpdatedAt)
 
 	person2, err := s.q.FindByPrimaryKeyFrom(PersonTable, person.ID)
@@ -70,11 +72,7 @@ func (s *ReformSuite) TestInsertWithPrimaryKey() {
 	s.Error(err)
 }
 
-func (s *ReformSuite) TestInsertReturning() {
-	if s.q.Dialect != postgresql.Dialect {
-		s.T().Skip("only PostgreSQL supports RETURNING syntax, other dialects support only integers from LastInsertId")
-	}
-
+func (s *ReformSuite) TestInsertWithStringPrimaryKey() {
 	project := &Project{ID: "new", End: pointer.ToTime(time.Now().Truncate(24 * time.Hour))}
 	err := s.q.Insert(project)
 	s.NoError(err)
@@ -113,8 +111,8 @@ func (s *ReformSuite) TestInsertColumns() {
 	s.Equal("", person.Name)
 	s.Equal((*int32)(nil), person.GroupID)
 	s.Equal(&newEmail, person.Email)
-	s.WithinDuration(t, person.CreatedAt, time.Second)
-	s.WithinDuration(t, *person.UpdatedAt, time.Second)
+	s.WithinDuration(t, person.CreatedAt, 2*time.Second)
+	s.WithinDuration(t, *person.UpdatedAt, 2*time.Second)
 
 	person2, err := s.q.FindByPrimaryKeyFrom(PersonTable, person.ID)
 	s.NoError(err)
@@ -122,6 +120,21 @@ func (s *ReformSuite) TestInsertColumns() {
 	s.Equal(person, person2)
 
 	err = s.q.Insert(person)
+	s.Error(err)
+}
+
+func (s *ReformSuite) TestInsertColumnsIntoView() {
+	pp := &PersonProject{PersonID: 1, ProjectID: "baron"}
+	err := s.q.InsertColumns(pp, "person_id", "project_id")
+	s.NoError(err)
+
+	err = s.q.InsertColumns(pp, "person_id", "project_id")
+	s.Error(err)
+
+	s.RestartTransaction()
+
+	pp = &PersonProject{PersonID: 1, ProjectID: "no_such_project"}
+	err = s.q.InsertColumns(pp, "person_id", "project_id")
 	s.Error(err)
 }
 
@@ -135,17 +148,19 @@ func (s *ReformSuite) TestInsertMulti() {
 	s.Equal(int32(0), person1.ID)
 	s.Equal("", person1.Name)
 	s.Equal(&newEmail, person1.Email)
-	s.WithinDuration(time.Now(), person1.CreatedAt, time.Second)
+	s.WithinDuration(time.Now(), person1.CreatedAt, 2*time.Second)
 	s.Nil(person1.UpdatedAt)
 
 	s.Equal(int32(0), person2.ID)
 	s.Equal(newName, person2.Name)
 	s.Nil(person2.Email)
-	s.WithinDuration(time.Now(), person2.CreatedAt, time.Second)
+	s.WithinDuration(time.Now(), person2.CreatedAt, 2*time.Second)
 	s.Nil(person2.UpdatedAt)
 }
 
 func (s *ReformSuite) TestInsertMultiWithPrimaryKeys() {
+	setIdentityInsert(s.T(), s.q, "people", true)
+
 	newEmail := faker.Internet().Email()
 	newName := faker.Name().Name()
 	person1, person2 := &Person{ID: 50, Email: &newEmail}, &Person{ID: 51, Name: newName}
@@ -155,13 +170,13 @@ func (s *ReformSuite) TestInsertMultiWithPrimaryKeys() {
 	s.Equal(int32(50), person1.ID)
 	s.Equal("", person1.Name)
 	s.Equal(&newEmail, person1.Email)
-	s.WithinDuration(time.Now(), person1.CreatedAt, time.Second)
+	s.WithinDuration(time.Now(), person1.CreatedAt, 2*time.Second)
 	s.Nil(person1.UpdatedAt)
 
 	s.Equal(int32(51), person2.ID)
 	s.Equal(newName, person2.Name)
 	s.Nil(person2.Email)
-	s.WithinDuration(time.Now(), person2.CreatedAt, time.Second)
+	s.WithinDuration(time.Now(), person2.CreatedAt, 2*time.Second)
 	s.Nil(person2.UpdatedAt)
 
 	person, err := s.q.FindByPrimaryKeyFrom(PersonTable, person1.ID)
@@ -184,6 +199,13 @@ func (s *ReformSuite) TestInsertMultiMixes() {
 	s.Error(err)
 }
 
+func (s *ReformSuite) TestInsertIDOnly() {
+	id := &IDOnly{}
+	err := s.q.Insert(id)
+	s.NoError(err)
+	s.Equal(int32(1), id.ID)
+}
+
 func (s *ReformSuite) TestUpdate() {
 	var person Person
 	err := s.q.Update(&person)
@@ -201,7 +223,7 @@ func (s *ReformSuite) TestUpdate() {
 	s.NoError(err)
 	s.Equal(personCreated, person.CreatedAt)
 	s.Require().NotNil(person.UpdatedAt)
-	s.WithinDuration(time.Now(), *person.UpdatedAt, time.Second)
+	s.WithinDuration(time.Now(), *person.UpdatedAt, 2*time.Second)
 
 	person2, err := s.q.FindByPrimaryKeyFrom(PersonTable, person.ID)
 	s.NoError(err)
@@ -219,9 +241,9 @@ func (s *ReformSuite) TestUpdateOverwrite() {
 	s.NoError(err)
 	s.Equal("", person2.Name)
 	s.Equal(&newEmail, person2.Email)
-	s.WithinDuration(time.Now(), person2.CreatedAt, time.Second)
+	s.WithinDuration(time.Now(), person2.CreatedAt, 2*time.Second)
 	s.Require().NotNil(person2.UpdatedAt)
-	s.WithinDuration(time.Now(), *person2.UpdatedAt, time.Second)
+	s.WithinDuration(time.Now(), *person2.UpdatedAt, 2*time.Second)
 }
 
 func (s *ReformSuite) TestUpdateColumns() {
@@ -243,7 +265,7 @@ func (s *ReformSuite) TestUpdateColumns() {
 		s.NoError(err)
 		s.Equal(personCreated, person.CreatedAt)
 		s.Require().NotNil(person.UpdatedAt)
-		s.WithinDuration(time.Now(), *person.UpdatedAt, time.Second)
+		s.WithinDuration(time.Now(), *person.UpdatedAt, 2*time.Second)
 
 		person2, err := s.q.FindByPrimaryKeyFrom(PersonTable, person.ID)
 		s.NoError(err)
@@ -261,8 +283,6 @@ func (s *ReformSuite) TestUpdateColumns() {
 		err := s.q.UpdateColumns(person, columns...)
 		s.Error(err)
 		s.Equal(e, err)
-
-		s.RestartTransaction()
 	}
 }
 
@@ -273,7 +293,7 @@ func (s *ReformSuite) TestSave() {
 	s.NoError(err)
 
 	person2, err := s.q.FindByPrimaryKeyFrom(PersonTable, person.ID)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(newName, person2.(*Person).Name)
 	s.Nil(person2.(*Person).Email)
 	s.Equal(person, person2)
@@ -284,7 +304,7 @@ func (s *ReformSuite) TestSave() {
 	s.NoError(err)
 
 	person2, err = s.q.FindByPrimaryKeyFrom(PersonTable, person.ID)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(newName, person2.(*Person).Name)
 	s.Equal(&newEmail, person2.(*Person).Email)
 	s.Equal(person, person2)

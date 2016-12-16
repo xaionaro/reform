@@ -112,17 +112,9 @@ type LegacyPerson struct {
 	Name *string `reform:"name"`
 }
 
-type Integer int32
-
-type String string
-
-//reform:extra
-type Extra struct {
-	ID    Integer   `reform:"id,pk"`
-	Name  *String   `reform:"name"`
-	Bytes []byte    `reform:"bytes"`
-	Byte  *byte     `reform:"byte"`
-	Array [512]byte `reform:"array"`
+// reform:id_only
+type IDOnly struct {
+	ID int32 `reform:"id,pk"`
 }
 
 // check interfaces

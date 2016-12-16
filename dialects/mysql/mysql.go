@@ -7,6 +7,10 @@ import (
 
 type mysql struct{}
 
+func (mysql) String() string {
+	return "mysql"
+}
+
 func (mysql) Placeholder(index int) string {
 	return "?"
 }
@@ -25,6 +29,14 @@ func (mysql) QuoteIdentifier(identifier string) string {
 
 func (mysql) LastInsertIdMethod() reform.LastInsertIdMethod {
 	return reform.LastInsertId
+}
+
+func (mysql) SelectLimitMethod() reform.SelectLimitMethod {
+	return reform.Limit
+}
+
+func (mysql) DefaultValuesMethod() reform.DefaultValuesMethod {
+	return reform.EmptyLists
 }
 
 // Dialect implements reform.Dialect for MySQL.

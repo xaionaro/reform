@@ -9,21 +9,22 @@ import (
 	"testing"
 	"time"
 
+	_ "github.com/denisenkom/go-mssqldb"
 	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/jackc/pgx/stdlib"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
-	_ "github.com/ziutek/mymysql/godrv"
 
 	"github.com/AlekSi/pointer"
 	"github.com/enodata/faker"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"gopkg.in/reform.v1"
+	"gopkg.in/reform.v1/dialects/mssql"
 	"gopkg.in/reform.v1/dialects/mysql"
 	"gopkg.in/reform.v1/dialects/postgresql"
 	"gopkg.in/reform.v1/dialects/sqlite3"
-	"gopkg.in/reform.v1/internal/test/models"
+	. "gopkg.in/reform.v1/internal/test/models"
 )
 
 var (
@@ -31,11 +32,11 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	driver := os.Getenv("REFORM_TEST_DRIVER")
+	driver := os.Getenv("REFORM_DRIVER")
 	source := os.Getenv("REFORM_TEST_SOURCE")
 	log.Printf("driver = %q, source = %q", driver, source)
 	if driver == "" || source == "" {
-		log.Fatal("no driver or source, set REFORM_TEST_DRIVER and REFORM_TEST_SOURCE")
+		log.Fatal("no driver or source, set REFORM_DRIVER and REFORM_TEST_SOURCE")
 	}
 
 	db, err := sql.Open(driver, source)
@@ -56,7 +57,7 @@ func TestMain(m *testing.M) {
 
 	var dialect reform.Dialect
 	switch driver {
-	case "mysql", "mymysql":
+	case "mysql":
 		dialect = mysql.Dialect
 
 		var tz string
@@ -66,7 +67,7 @@ func TestMain(m *testing.M) {
 		}
 		log.Printf("MySQL time_zone = %q", tz)
 
-	case "postgres", "pgx":
+	case "postgres":
 		dialect = postgresql.Dialect
 
 		var tz string
@@ -84,6 +85,9 @@ func TestMain(m *testing.M) {
 			log.Fatal(err)
 		}
 
+	case "mssql":
+		dialect = mssql.Dialect
+
 	default:
 		log.Fatal("reform: no dialect for driver " + driver)
 	}
@@ -91,6 +95,20 @@ func TestMain(m *testing.M) {
 	DB = reform.NewDB(db, dialect, nil)
 
 	os.Exit(m.Run())
+}
+
+func setIdentityInsert(t *testing.T, tx *reform.TX, table string, allow bool) {
+	if tx.Dialect != mssql.Dialect {
+		return
+	}
+
+	allowString := "OFF"
+	if allow {
+		allowString = "ON"
+	}
+	sql := fmt.Sprintf("SET IDENTITY_INSERT %s %s", tx.QuoteIdentifier(table), allowString)
+	_, err := tx.Exec(sql)
+	require.NoError(t, err)
 }
 
 type ReformSuite struct {
@@ -110,6 +128,8 @@ func (s *ReformSuite) SetupTest() {
 	var err error
 	s.q, err = DB.Begin()
 	s.Require().NoError(err)
+
+	setIdentityInsert(s.T(), s.q, "people", false)
 }
 
 func (s *ReformSuite) TearDownTest() {
@@ -126,29 +146,29 @@ func (s *ReformSuite) RestartTransaction() {
 }
 
 func (s *ReformSuite) TestStringer() {
-	person, err := s.q.FindByPrimaryKeyFrom(models.PersonTable, 1)
+	person, err := s.q.FindByPrimaryKeyFrom(PersonTable, 1)
 	s.NoError(err)
 	expected := "ID: 1 (int32), GroupID: 65534 (*int32), Name: `Denis Mills` (string), Email: <nil> (*string), CreatedAt: 2009-11-10 23:00:00 +0000 UTC (time.Time), UpdatedAt: <nil> (*time.Time)"
 	s.Equal(expected, person.String())
 
-	project, err := s.q.FindByPrimaryKeyFrom(models.ProjectTable, "baron")
+	project, err := s.q.FindByPrimaryKeyFrom(ProjectTable, "baron")
 	s.NoError(err)
 	expected = "Name: `Vicious Baron` (string), ID: `baron` (string), Start: 2014-06-01 00:00:00 +0000 UTC (time.Time), End: 2016-02-21 00:00:00 +0000 UTC (*time.Time)"
 	s.Equal(expected, project.String())
 }
 
 func (s *ReformSuite) TestNeverNil() {
-	project := new(models.Project)
+	project := new(Project)
 
 	for i, v := range project.Values() {
 		if v == nil {
-			s.Fail("Value is nil", "%s %#v", models.ProjectTable.Columns()[i], v)
+			s.Fail("Value is nil", "%s %#v", ProjectTable.Columns()[i], v)
 		}
 	}
 
 	for i, v := range project.Pointers() {
 		if v == nil {
-			s.Fail("Pointer is nil", "%s %#v", models.ProjectTable.Columns()[i], v)
+			s.Fail("Pointer is nil", "%s %#v", ProjectTable.Columns()[i], v)
 		}
 	}
 
@@ -164,8 +184,8 @@ func (s *ReformSuite) TestNeverNil() {
 }
 
 func (s *ReformSuite) TestHasPK() {
-	person := new(models.Person)
-	project := new(models.Project)
+	person := new(Person)
+	project := new(Project)
 	s.False(person.HasPK())
 	s.False(project.HasPK())
 
@@ -185,11 +205,13 @@ func (s *ReformSuite) TestPlaceholders() {
 }
 
 func (s *ReformSuite) TestInTransaction() {
+	setIdentityInsert(s.T(), s.q, "people", true)
+
 	err := s.q.Rollback()
 	s.Require().NoError(err)
 	s.q = nil
 
-	person := &models.Person{ID: 42, Email: pointer.ToString(faker.Internet().Email())}
+	person := &Person{ID: 42, Email: pointer.ToString(faker.Internet().Email())}
 
 	err = DB.InTransaction(func(tx *reform.TX) error {
 		err := tx.Insert(person)
@@ -199,7 +221,7 @@ func (s *ReformSuite) TestInTransaction() {
 	s.EqualError(err, "epic error")
 
 	s.Panics(func() {
-		DB.InTransaction(func(tx *reform.TX) error {
+		err = DB.InTransaction(func(tx *reform.TX) error {
 			err := tx.Insert(person)
 			s.NoError(err)
 			panic("epic panic!")
@@ -221,6 +243,8 @@ func (s *ReformSuite) TestInTransaction() {
 }
 
 func (s *ReformSuite) TestTimezones() {
+	setIdentityInsert(s.T(), s.q, "people", true)
+
 	t1 := time.Now()
 	t2 := t1.UTC()
 	vlat, err := time.LoadLocation("Asia/Vladivostok")
@@ -278,4 +302,17 @@ func (s *ReformSuite) TestTimezones() {
 		err = rows.Close()
 		s.NoError(err)
 	}
+}
+
+// database/sql.(*Rows).Columns() is not currently used, but may be useful in the future.
+// Test is in place to track drivers supporting it.
+func (s *ReformSuite) TestColumns() {
+	rows, err := s.q.SelectRows(PersonTable, "WHERE name = "+s.q.Placeholder(1)+" ORDER BY id", "Elfrieda Abbott")
+	s.NoError(err)
+	s.Require().NotNil(rows)
+	defer rows.Close()
+
+	columns, err := rows.Columns()
+	s.NoError(err)
+	s.Equal(PersonTable.Columns(), columns)
 }
