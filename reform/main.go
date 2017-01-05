@@ -65,13 +65,16 @@ func processFile(path, file, pack string) error {
 		t += "Type"
 		s += "Scope"
 
+		capitalizedModelName := strings.ToUpper(str.Type[0:1]) + str.Type[1:]
+
 		sd := StructData{
 			LogType:	 str.Type+"LogRow",
 			StructInfo:	 str,
 			TableType:	 t,
 			LogTableType:	 t+"_log",
 			ScopeType:	 s,
-			FilterType:	 strings.ToUpper(str.Type[0:1]) + str.Type[1:] + "Filter",
+			FilterType:	 capitalizedModelName + "Filter",
+			FilterShorthandType: capitalizedModelName + "F",
 			TableVar:	 v,
 			LogTableVar:	 v+"LogRow",
 			IsPrivateStruct: str.Type[0:1] == strings.ToLower(str.Type[0:1]),

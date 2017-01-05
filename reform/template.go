@@ -13,6 +13,7 @@ type StructData struct {
 	LogTableType    string
 	ScopeType	string
 	FilterType	string
+	FilterShorthandType string
 	TableVar        string
 	LogTableVar     string
 	IsPrivateStruct bool
@@ -48,6 +49,7 @@ type {{ .ScopeType }} struct {
 	loggingComment  string
 }
 
+type {{ .FilterShorthandType }} {{ .Type }}
 type {{ .FilterType }} {{ .Type }}
 
 type {{ .LogType }} struct {
