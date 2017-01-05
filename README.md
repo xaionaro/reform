@@ -2,7 +2,7 @@
 
 This's a derivative of a beautiful project "[reform](https://github.com/go-reform/reform)". Please look at the upstream code first.
 
-This project just adds some functionality to the upstream ORM. You shouldn't use this fork unless you want to use this functionality.
+This project just adds some functionality to the upstream ORM to make it usable in ActiveRecord ways. You shouldn't use this fork unless you want to use this functionality.
 
 Added functionality:
 * `ModelName.Select()` — a wrapper for SelectRows() and NextRow(): it makes a query and collects the result into a slice. See example below.
