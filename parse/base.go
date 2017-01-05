@@ -3,7 +3,7 @@
 // This package, despite containing exported types, methods and functions,
 // is an internal part of implementation of 'reform' command, also used by generated files,
 // and not a part of public stable API.
-package parse // import "gopkg.in/reform.v1/parse"
+package parse
 
 import (
 	"fmt"
