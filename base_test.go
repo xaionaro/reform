@@ -2,7 +2,6 @@ package reform_test
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -14,8 +13,6 @@ import (
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/AlekSi/pointer"
-	"github.com/enodata/faker"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -43,29 +40,37 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// Use single connection so various session-related variables work.
+	// For example: "PRAGMA foreign_keys" for SQLite3, "SET IDENTITY_INSERT" for MS SQL, etc.
 	db.SetMaxIdleConns(1)
 	db.SetMaxOpenConns(1)
 	db.SetConnMaxLifetime(-1)
+
 	err = db.Ping()
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	// print useful information for debugging
 	now := time.Now()
 	log.Printf("time.Now()       = %s", now)
 	log.Printf("time.Now().UTC() = %s", now.UTC())
 
+	// select dialect for driver
 	var dialect reform.Dialect
 	switch driver {
 	case "mysql":
 		dialect = mysql.Dialect
 
-		var tz string
-		err = db.QueryRow("SHOW VARIABLES LIKE 'time_zone'").Scan(&tz, &tz)
+		var mode, autocommit, tz string
+		err = db.QueryRow("SELECT @@sql_mode, @@autocommit, @@time_zone").Scan(&mode, &autocommit, &tz)
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.Printf("MySQL time_zone = %q", tz)
+		log.Printf("MySQL sql_mode   = %q", mode)
+		log.Printf("MySQL autocommit = %q", autocommit)
+		log.Printf("MySQL time_zone  = %q", tz)
 
 	case "postgres":
 		dialect = postgresql.Dialect
@@ -88,6 +93,17 @@ func TestMain(m *testing.M) {
 	case "mssql":
 		dialect = mssql.Dialect
 
+		var options uint16
+		err = db.QueryRow("SELECT @@OPTIONS").Scan(&options)
+		if err != nil {
+			log.Fatal(err)
+		}
+		xact := "ON"
+		if options&0x4000 == 0 {
+			xact = "OFF"
+		}
+		log.Printf("MS SQL OPTIONS = %#4x (XACT_ABORT %s)", options, xact)
+
 	default:
 		log.Fatal("reform: no dialect for driver " + driver)
 	}
@@ -97,8 +113,21 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func setIdentityInsert(t *testing.T, tx *reform.TX, table string, allow bool) {
-	if tx.Dialect != mssql.Dialect {
+// checkForeignKeys checks that foreign keys are still enforced for sqlite3.
+func checkForeignKeys(t *testing.T, q *reform.Querier) {
+	if q.Dialect != sqlite3.Dialect {
+		return
+	}
+
+	var enabled bool
+	err := q.QueryRow("PRAGMA foreign_keys").Scan(&enabled)
+	require.NoError(t, err)
+	require.True(t, enabled)
+}
+
+// setIdentityInsert allows or disallows insertions of rows with set primary keys for MS SQL.
+func setIdentityInsert(t *testing.T, q *reform.Querier, table string, allow bool) {
+	if q.Dialect != mssql.Dialect {
 		return
 	}
 
@@ -106,8 +135,8 @@ func setIdentityInsert(t *testing.T, tx *reform.TX, table string, allow bool) {
 	if allow {
 		allowString = "ON"
 	}
-	sql := fmt.Sprintf("SET IDENTITY_INSERT %s %s", tx.QuoteIdentifier(table), allowString)
-	_, err := tx.Exec(sql)
+	sql := fmt.Sprintf("SET IDENTITY_INSERT %s %s", q.QuoteIdentifier(table), allowString)
+	_, err := q.Exec(sql)
 	require.NoError(t, err)
 }
 
@@ -129,15 +158,19 @@ func (s *ReformSuite) SetupTest() {
 	s.q, err = DB.Begin()
 	s.Require().NoError(err)
 
-	setIdentityInsert(s.T(), s.q, "people", false)
+	setIdentityInsert(s.T(), s.q.Querier, "people", false)
 }
 
 func (s *ReformSuite) TearDownTest() {
 	// some transactional tests rollback and nilify transaction
 	if s.q != nil {
+		checkForeignKeys(s.T(), s.q.Querier)
+
 		err := s.q.Rollback()
 		s.Require().NoError(err)
 	}
+
+	checkForeignKeys(s.T(), DB.Querier)
 }
 
 func (s *ReformSuite) RestartTransaction() {
@@ -204,46 +237,8 @@ func (s *ReformSuite) TestPlaceholders() {
 	s.Equal([]string{"$2", "$3", "$4", "$5", "$6"}, s.q.Placeholders(2, 5))
 }
 
-func (s *ReformSuite) TestInTransaction() {
-	setIdentityInsert(s.T(), s.q, "people", true)
-
-	err := s.q.Rollback()
-	s.Require().NoError(err)
-	s.q = nil
-
-	person := &Person{ID: 42, Email: pointer.ToString(faker.Internet().Email())}
-
-	err = DB.InTransaction(func(tx *reform.TX) error {
-		err := tx.Insert(person)
-		s.NoError(err)
-		return errors.New("epic error")
-	})
-	s.EqualError(err, "epic error")
-
-	s.Panics(func() {
-		err = DB.InTransaction(func(tx *reform.TX) error {
-			err := tx.Insert(person)
-			s.NoError(err)
-			panic("epic panic!")
-		})
-	})
-
-	err = DB.InTransaction(func(tx *reform.TX) error {
-		err := tx.Insert(person)
-		s.NoError(err)
-		return nil
-	})
-	s.NoError(err)
-
-	err = DB.Insert(person)
-	s.Error(err)
-
-	err = DB.Delete(person)
-	s.NoError(err)
-}
-
 func (s *ReformSuite) TestTimezones() {
-	setIdentityInsert(s.T(), s.q, "people", true)
+	setIdentityInsert(s.T(), s.q.Querier, "people", true)
 
 	t1 := time.Now()
 	t2 := t1.UTC()

@@ -52,7 +52,7 @@ func (s *ReformSuite) TestInsertWithValues() {
 }
 
 func (s *ReformSuite) TestInsertWithPrimaryKey() {
-	setIdentityInsert(s.T(), s.q, "people", true)
+	setIdentityInsert(s.T(), s.q.Querier, "people", true)
 
 	newEmail := faker.Internet().Email()
 	person := &Person{ID: 50, Email: &newEmail}
@@ -73,7 +73,8 @@ func (s *ReformSuite) TestInsertWithPrimaryKey() {
 }
 
 func (s *ReformSuite) TestInsertWithStringPrimaryKey() {
-	project := &Project{ID: "new", End: pointer.ToTime(time.Now().Truncate(24 * time.Hour))}
+	start := time.Now().UTC().Truncate(24 * time.Hour)
+	project := &Project{ID: "new", Start: start, End: pointer.ToTime(start.AddDate(0, 0, 1))}
 	err := s.q.Insert(project)
 	s.NoError(err)
 	s.Equal("new", project.ID)
@@ -159,7 +160,7 @@ func (s *ReformSuite) TestInsertMulti() {
 }
 
 func (s *ReformSuite) TestInsertMultiWithPrimaryKeys() {
-	setIdentityInsert(s.T(), s.q, "people", true)
+	setIdentityInsert(s.T(), s.q.Querier, "people", true)
 
 	newEmail := faker.Internet().Email()
 	newName := faker.Name().Name()

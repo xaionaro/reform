@@ -21,7 +21,7 @@ type StructData struct {
 
 var (
 	prologTemplate = template.Must(template.New("prolog").Parse(`
-// generated with gopkg.in/reform.v1
+// Generated with gopkg.in/reform.v1. Do not edit by hand.
 
 import (
 	"fmt"
@@ -588,12 +588,12 @@ func (s *{{ .Type }}) SetPK(pk interface{}) {
 var (
 	// check interfaces
 	_ reform.View   = {{ .TableVar }}
-	_ reform.Struct = new({{ .Type }})
+	_ reform.Struct = (*{{ .Type }})(nil)
 {{- if .IsTable }}
 	_ reform.Table  = {{ .TableVar }}
-	_ reform.Record = new({{ .Type }})
+	_ reform.Record = (*{{ .Type }})(nil)
 {{- end }}
-	_ fmt.Stringer   = new({{ .Type }})
+	_ fmt.Stringer  = (*{{ .Type }})(nil)
 {{- if .IsPrivateStruct }}
 
 	// querier

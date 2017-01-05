@@ -13,7 +13,7 @@ type DBInterface interface {
 }
 
 // check interface
-var _ DBInterface = new(sql.DB)
+var _ DBInterface = (*sql.DB)(nil)
 
 // DB represents a connection to SQL database.
 type DB struct {
@@ -37,10 +37,10 @@ func NewDBFromInterface(db DBInterface, dialect Dialect, logger Logger) *DB {
 
 // Begin starts a transaction.
 func (db *DB) Begin() (*TX, error) {
-	start := time.Now()
 	db.logBefore("BEGIN", nil)
+	start := time.Now()
 	tx, err := db.db.Begin()
-	db.logAfter("BEGIN", nil, time.Now().Sub(start), err)
+	db.logAfter("BEGIN", nil, time.Since(start), err)
 	if err != nil {
 		return nil, err
 	}
@@ -74,4 +74,4 @@ func (db *DB) InTransaction(f func(t *TX) error) error {
 }
 
 // check interface
-var _ DBTX = new(DB)
+var _ DBTX = (*DB)(nil)

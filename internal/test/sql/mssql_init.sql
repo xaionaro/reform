@@ -23,3 +23,6 @@ CREATE TABLE [person_project] (
 CREATE TABLE id_only (
   [id] int identity(1, 1) PRIMARY KEY
 );
+
+-- to allow insert test data with IDs
+SET IDENTITY_INSERT people ON;
