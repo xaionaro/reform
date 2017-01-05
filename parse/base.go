@@ -43,10 +43,10 @@ func (s *StructInfo) UnPointer() StructInfo {
 func (s StructInfo) ToLog() *StructInfo {
 	s.SQLName += "_log"
 	s.Fields   = append(s.Fields, []FieldInfo{
-		FieldInfo{ Name: "LogAuthor",  Type: "*string",   Column: "log_author"  },
-		FieldInfo{ Name: "LogAction",  Type:  "string",   Column: "log_action"  },
-		FieldInfo{ Name: "LogDate",    Type: "time.Time", Column: "log_date"    },
-		FieldInfo{ Name: "LogComment", Type:  "string",   Column: "log_comment" },
+		FieldInfo{ Name: "LogAuthor",  PKType: "*string",   Column: "log_author"  },
+		FieldInfo{ Name: "LogAction",  PKType:  "string",   Column: "log_action"  },
+		FieldInfo{ Name: "LogDate",    PKType: "time.Time", Column: "log_date"    },
+		FieldInfo{ Name: "LogComment", PKType:  "string",   Column: "log_comment" },
 	}...)
 
 	return &s
