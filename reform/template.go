@@ -360,6 +360,7 @@ func (s *{{ .ScopeType }}) getWhereTail() (tail string, whereTailArgs []interfac
 	return
 }
 
+func (s *{{ .Type }}) Where(args ...interface{}) (scope *{{ .ScopeType }}) { return s.Scope().Where(args...) }
 func (s *{{ .ScopeType }}) Where(in_args ...interface{}) *{{ .ScopeType }} {
 	s.where = append(s.where, in_args)
 	return s
