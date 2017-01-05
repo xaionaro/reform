@@ -422,7 +422,7 @@ func (s *{{ .ScopeType }}) Select(args ...interface{}) (result []{{.Type}}, err 
 	defer rows.Close()
 
 	for {
-		err := s.db.NextRow(s, rows)
+		err = s.db.NextRow(s, rows)
 		if err != nil {
 			break
 		}
