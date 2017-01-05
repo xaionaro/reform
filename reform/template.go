@@ -313,6 +313,11 @@ func (s *{{ .ScopeType }}) parseWhereTailComponent(in_args []interface{}) (tail 
 				s = s.Where(in_args[1:]...)
 			}
 			tail, args, err = s.getWhereTailForFilter({{ .FilterType }}(arg))
+		case {{ .FilterShorthandType }}:
+			if len(in_args) > 1 {
+				s = s.Where(in_args[1:]...)
+			}
+			tail, args, err = s.getWhereTailForFilter({{ .FilterType }}(arg))
 		case {{ .FilterType }}:
 			if len(in_args) > 1 {
 				s = s.Where(in_args[1:]...)
