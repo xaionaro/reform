@@ -443,12 +443,19 @@ func (s *{{ .ScopeType }}) Select(args ...interface{}) (result []{{.Type}}, err 
 	}
 	defer rows.Close()
 
-	for {
-		err = s.db.NextRow(s, rows)
+	for rows.Next() {
+		item := {{ .Type }}{}
+		err = rows.Scan(item.Pointers()...)
 		if err != nil {
-			break
+			return
 		}
-		result = append(result, (*s).{{ .Type }})
+
+		result = append(result, item)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return
 	}
 
 	return
