@@ -51,7 +51,7 @@ func Object(obj interface{}, schema, table string, imitateGorm bool) (res *Struc
 
 		// skip if tag "sql" is equals to "-"
 		tag := f.Tag
-		if tag.Get("sql") == "-" {
+		if tag.Get("sql") == "-" || tag.Get("reform") == "" {
 			continue
 		}
 
