@@ -45,7 +45,7 @@ func parseStructTypeSpec(ts *ast.TypeSpec, str *ast.StructType, imitateGorm bool
 	for _, f := range str.Fields.List {
 		// skip if tag "sql" is equals to "-"
 		tag := getFieldTag(f)
-		if tag.Get("sql") == "-" || tag.Get("reform") == "" {
+		if tag.Get("sql") == "-" || tag.Get("reform") == "-" {
 			continue
 		}
 
