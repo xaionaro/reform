@@ -43,6 +43,7 @@ type {{ .ScopeType }} struct {
 	db       *reform.DB
 	where [][]interface{}
 	order   []string
+	groupBy []string
 	limit     int
 
 	loggingEnabled  bool
@@ -240,6 +241,14 @@ func (s *{{ .ScopeType }}) getLimitTail() (tail string, args []interface{}, err 
 	return
 }
 
+// Compiles SQL tail for defined group scope
+// TODO: should be compiled via dialects
+func (s *{{ .ScopeType }}) getGroupTail() (tail string, args []interface{}, err error) {
+	tail = strings.Join(s.groupBy, ", ")
+
+	return
+}
+
 // Compiles SQL tail for defined order scope
 // TODO: should be compiled via dialects
 func (s *{{ .ScopeType }}) getOrderTail() (tail string, args []interface{}, err error) {
@@ -384,6 +393,10 @@ func (s *{{ .ScopeType }}) getTail() (tail string, args []interface{}, err error
 	if err != nil {
 		return
 	}
+	groupTailString, groupTailArgs, err := s.getGroupTail()
+	if err != nil {
+		return
+	}
 	orderTailString, orderTailArgs, err := s.getOrderTail()
 	if err != nil {
 		return
@@ -393,10 +406,14 @@ func (s *{{ .ScopeType }}) getTail() (tail string, args []interface{}, err error
 		return
 	}
 
-	args = append(whereTailArgs, orderTailArgs...)
+	args = append(whereTailArgs, append(groupTailArgs, orderTailArgs...))
 
 	if len(whereTailString) > 0 {
 		whereTailString = " WHERE "+whereTailString+" "
+	}
+
+	if len(groupTailString) > 0 {
+		groupTailString = " GROUP BY "+groupTailString+" "
 	}
 
 	if len(orderTailString) > 0 {
@@ -407,7 +424,7 @@ func (s *{{ .ScopeType }}) getTail() (tail string, args []interface{}, err error
 		limitTailString = " LIMIT "+limitTailString+" "
 	}
 
-	tail = whereTailString+orderTailString+limitTailString
+	tail = whereTailString+groupTailString+orderTailString+limitTailString
 	return
 
 }
@@ -448,6 +465,16 @@ func (s *{{ .ScopeType }}) First(args ...interface{}) (result {{.Type}}, err err
 	err = s.db.SelectOneTo(&result, tail, args...)
 
 	return
+}
+
+// Sets "GROUP BY".
+func (s *{{ .Type }}) Group(args ...interface{}) (scope *{{ .ScopeType }}) { return s.Scope().Group(args...) }
+func (s *{{ .ScopeType }}) Group(argsI ...interface{}) (*{{ .ScopeType }}) {
+	for _,argI := range argsI {
+		s.groupBy = append(s.groupBy, argI.(string))
+	}
+
+	return s
 }
 
 // Sets order. Arguments should be passed by pairs column-{ASC,DESC}. For example Order("id", "ASC", "value" "DESC")
