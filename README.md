@@ -7,9 +7,11 @@ This project just adds some functionality to the upstream ORM to make it usable 
 Added functionality:
 * `ModelName.Select()` — a wrapper for SelectRows() and NextRow(): it makes a query and collects the result into a slice. See example below.
 * `ModelName.First()` — the same as Select() but return only one record as structure (not as slice of structures)
-* `ModelName.Order()` — creates a scope to be used by Select() or First() with predefined order
+* `ModelName.Order({orderString|field, order[, field, order …]})` — creates a scope to be used by Select() or First() with predefined order
+* `ModelName.Group({fieldName0[, fieldName1[, fieldName2 [...]]]})` — creates a scope to be used by Select() or First() with predefined "GROUP BY"
 * `{ModelName|scope}.Limit(limit)` — sets SQL "LIMIT" parameter
 * `{ModelName|scope}.Order({orderString|field, order[, field, order …]})` — sets SQL "ORDER" parameter
+* `{ModelName|scope}.Group({fieldName0[, fieldName1[, fieldName2 [...]]]})` — sets SQL "GROUP" parameter
 * `{ModelName|scope}.Where({whereString|object})` — adds "WHERE" condition
 * `{ModelName|scope}.Log(true, author, comment)` — enable logging to another table
 * `object.Delete()` — deletes and object using it's primary key
