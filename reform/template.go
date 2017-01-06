@@ -406,7 +406,7 @@ func (s *{{ .ScopeType }}) getTail() (tail string, args []interface{}, err error
 		return
 	}
 
-	args = append(whereTailArgs, append(groupTailArgs, orderTailArgs...))
+	args = append(whereTailArgs, append(groupTailArgs, orderTailArgs...)...)
 
 	if len(whereTailString) > 0 {
 		whereTailString = " WHERE "+whereTailString+" "
