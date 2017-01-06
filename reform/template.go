@@ -18,6 +18,7 @@ type StructData struct {
 	LogTableVar     string
 	IsPrivateStruct bool
 	QuerierVar      string
+	ImitateGorm	bool
 }
 
 var (
@@ -30,8 +31,8 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/reform.v1"
-	"gopkg.in/reform.v1/parse"
+	"github.com/xaionaro/reform"
+	"github.com/xaionaro/reform/parse"
 )
 `))
 
@@ -49,7 +50,9 @@ type {{ .ScopeType }} struct {
 	loggingComment  string
 }
 
+{{- if .IsPrivateStruct }}
 type {{ .FilterShorthandType }} {{ .Type }}
+{{- end }}
 type {{ .FilterType }} {{ .Type }}
 
 type {{ .LogType }} struct {
@@ -313,11 +316,13 @@ func (s *{{ .ScopeType }}) parseWhereTailComponent(in_args []interface{}) (tail 
 				s = s.Where(in_args[1:]...)
 			}
 			tail, args, err = s.getWhereTailForFilter({{ .FilterType }}(arg))
+{{- if .IsPrivateStruct }}
 		case {{ .FilterShorthandType }}:
 			if len(in_args) > 1 {
 				s = s.Where(in_args[1:]...)
 			}
 			tail, args, err = s.getWhereTailForFilter({{ .FilterType }}(arg))
+{{- end }}
 		case {{ .FilterType }}:
 			if len(in_args) > 1 {
 				s = s.Where(in_args[1:]...)
@@ -470,7 +475,7 @@ func (s *{{ .ScopeType }}) Order(argsI ...interface{}) (*{{ .ScopeType }}) {
 }
 
 // Sets limit.
-func (s *{{ .Type }}) Limit(limit int) (scope *{{ .ScopeType }}) { return s.Scope().Limit(limit) }
+func (s *{{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Limit(limit int) (scope *{{ .ScopeType }}) { return s.Scope().Limit(limit) }
 func (s *{{ .ScopeType }}) Limit(limit int) (*{{ .ScopeType }}) {
 	s.limit = limit
 	return s
@@ -479,13 +484,13 @@ func (s *{{ .ScopeType }}) Limit(limit int) (*{{ .ScopeType }}) {
 {{- if .IsTable }}
 
 // "Reload" reloads record using Primary Key
-func (s *{{ .FilterType }}) Reload(db *reform.DB) error { return (*{{ .Type }})(s).Reload(db) }
+func (s *{{ .FilterType }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Reload(db *reform.DB) error { return (*{{ .Type }})(s).Reload(db) }
 func (s *{{ .Type }}) Reload(db *reform.DB) (err error) {
 	return db.FindByPrimaryKeyTo(s, s.PKValue())
 }
 
 // Create and Insert inserts new record to DB
-func (s *{{ .Type }}) Create() (err error) { return s.Scope().Create() }
+func (s *{{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Create() (err error) { return s.Scope().Create() }
 func (s *{{ .ScopeType }}) Create() (err error) {
 	err = s.db.Insert(s)
 	if err == nil {
@@ -493,7 +498,7 @@ func (s *{{ .ScopeType }}) Create() (err error) {
 	}
 	return err
 }
-func (s *{{ .Type }}) Insert() (err error) { return s.Scope().Insert() }
+func (s *{{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Insert() (err error) { return s.Scope().Insert() }
 func (s *{{ .ScopeType }}) Insert() (err error) {
 	err = s.db.Insert(s)
 	if err == nil {
@@ -503,7 +508,7 @@ func (s *{{ .ScopeType }}) Insert() (err error) {
 }
 
 // Save inserts new record to DB is PK is zero and updates existing record if PK is not zero
-func (s *{{ .Type }}) Save() (err error) { return s.Scope().Save() }
+func (s *{{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Save() (err error) { return s.Scope().Save() }
 func (s *{{ .ScopeType }}) Save() (err error) {
 	err = s.db.Save(s)
 	if err == nil {
@@ -513,7 +518,7 @@ func (s *{{ .ScopeType }}) Save() (err error) {
 }
 
 // Update updates existing record in DB
-func (s *{{ .Type }}) Update() (err error) { return s.Scope().Update() }
+func (s *{{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Update() (err error) { return s.Scope().Update() }
 func (s *{{ .ScopeType }}) Update() (err error) {
 	err = s.db.Update(s)
 	if err == nil {
@@ -523,7 +528,7 @@ func (s *{{ .ScopeType }}) Update() (err error) {
 }
 
 // Delete deletes existing record in DB
-func (s *{{ .Type }}) Delete() (err error) { return s.Scope().Delete() }
+func (s *{{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Delete() (err error) { return s.Scope().Delete() }
 func (s *{{ .ScopeType }}) Delete() (err error) {
 	err = s.db.Delete(s)
 	if err == nil {
@@ -602,11 +607,9 @@ var (
 	_ reform.Record = (*{{ .Type }})(nil)
 {{- end }}
 	_ fmt.Stringer  = (*{{ .Type }})(nil)
-{{- if .IsPrivateStruct }}
 
 	// querier
 	{{ .QuerierVar }} = {{ .Type }}{} // Should be read only
-{{- end }}
 	defaultDB_{{ .Type }} *reform.DB
 )
 

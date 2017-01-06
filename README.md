@@ -17,6 +17,8 @@ Added functionality:
 * `object.Update()` — updates object properties using it's primary key
 * `object.Save()` — saves new object if primary key is zeroed or updates object properties using it's primary key if it's not zeroed
 
+Also you can add a magic comment `//reformOptions:imitateGorm` to act more like [gorm](https://github.com/jinzhu/gorm): automatically generate column names and use tag "gorm" instead of "reform".
+
 ## Quick start
 
 `1`. Create a model
@@ -55,8 +57,8 @@ import (
         "fmt"
 
         "database/sql"
-        "gopkg.in/reform.v1"
-        "gopkg.in/reform.v1/dialects/sqlite3"
+        "github.com/xaionaro/reform"
+        "github.com/xaionaro/reform/dialects/sqlite3"
 
         "../models"
 )

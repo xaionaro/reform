@@ -11,6 +11,7 @@ import (
 )
 
 var magicReformComment = regexp.MustCompile(`reform:([0-9A-Za-z_\.]+)`)
+var magicReformOptionsComment = regexp.MustCompile(`reformOptions:([0-9A-Za-z_\.,]+)`)
 
 func fileGoType(x ast.Expr) string {
 	switch t := x.(type) {
@@ -23,7 +24,18 @@ func fileGoType(x ast.Expr) string {
 	}
 }
 
-func parseStructTypeSpec(ts *ast.TypeSpec, str *ast.StructType) (*StructInfo, error) {
+func getFieldTag(f *ast.Field) reflect.StructTag {
+	if f.Tag != nil {
+		tag := f.Tag.Value
+		if len(tag) >= 3 {
+			return reflect.StructTag(tag[1 : len(tag)-1]) // strip quotes
+		}
+	}
+
+	return reflect.StructTag("")
+}
+
+func parseStructTypeSpec(ts *ast.TypeSpec, str *ast.StructType, imitateGorm bool) (*StructInfo, error) {
 	res := &StructInfo{
 		Type:         ts.Name.Name,
 		PKFieldIndex: -1,
@@ -31,51 +43,75 @@ func parseStructTypeSpec(ts *ast.TypeSpec, str *ast.StructType) (*StructInfo, er
 
 	var n int
 	for _, f := range str.Fields.List {
-		// consider only fields with "reform:" tag
-		if f.Tag == nil {
-			continue
-		}
-		tag := f.Tag.Value
-		if len(tag) < 3 {
-			continue
-		}
-		tag = reflect.StructTag(tag[1 : len(tag)-1]).Get("reform") // strip quotes
-		if len(tag) == 0 {
+		// skip if tag "sql" is equals to "-"
+		tag := getFieldTag(f)
+		if tag.Get("sql") == "-" {
 			continue
 		}
 
-		// check for anonymous fields
+		var tagString string
+		if imitateGorm {
+			// consider tag "gorm:" if is set
+			tagString = tag.Get("gorm")
+		} else {
+			// consider only fields with "reform:" tag
+			tagString = tag.Get("reform")
+			if len(tagString) == 0 {
+				continue
+			}
+		}
+
+		// getting field name
+		var fieldName string
 		if len(f.Names) == 0 {
-			return nil, fmt.Errorf(`reform: %s has anonymous field %s with "reform:" tag, it is not allowed`, res.Type, f.Type)
-		}
-		if len(f.Names) != 1 {
-			panic(fmt.Sprintf("reform: %d names: %#v. Please report this bug.", len(f.Names), f.Names))
-		}
+			if imitateGorm {
+				fieldName = fileGoType(f.Type)
+			} else {
+				return nil, fmt.Errorf(`reform: %s has reform-active anonymous field "%s", it is not allowed`, res.Type, f.Type)
+			}
 
-		// check for exported name
-		name := f.Names[0]
-		if !name.IsExported() {
-			return nil, fmt.Errorf(`reform: %s has non-exported field %s with "reform:" tag, it is not allowed`, res.Type, name.Name)
+			// check for exported name
+			fieldNameFirstCharacter := fieldName[0:1]
+			if fieldNameFirstCharacter != strings.ToUpper(fieldNameFirstCharacter) {
+				return nil, fmt.Errorf(`reform: %s has non-exported reform-active field "%s", it is not allowed`, res.Type, f.Type)
+			}
+		} else {
+			fieldName = f.Names[0].Name
+
+			// check for exported name
+			if !f.Names[0].IsExported() {
+				return nil, fmt.Errorf(`reform: %s has non-exported reform-active field "%s", it is not allowed`, res.Type, f.Type)
+			}
+
+			if len(f.Names) > 1 {
+				panic(fmt.Sprintf("reform: %d names: %#v. Please report this bug.", len(f.Names), f.Names))
+			}
 		}
 
 		// parse tag and type
-		column, isPK := parseStructFieldTag(tag)
+		var column string
+		var isPK bool
+		if imitateGorm {
+			column, isPK = parseStructFieldGormTag(tagString, fieldName)
+		} else {
+			column, isPK = parseStructFieldTag(tagString)
+		}
 		if column == "" {
-			return nil, fmt.Errorf(`reform: %s has field %s with invalid "reform:" tag value, it is not allowed`, res.Type, name.Name)
+			return nil, fmt.Errorf(`reform: %s has field %s with invalid "reform:"/"gorm:" tag value, it is not allowed`, res.Type, f.Type)
 		}
 		var pkType string
 		if isPK {
 			pkType = fileGoType(f.Type)
 			if strings.HasPrefix(pkType, "*") {
-				return nil, fmt.Errorf(`reform: %s has pointer field %s with with "pk" label in "reform:" tag, it is not allowed`, res.Type, name.Name)
+				return nil, fmt.Errorf(`reform: %s has pointer field %s with a primary field tag, it is not allowed`, res.Type, f.Type)
 			}
 			if res.PKFieldIndex >= 0 {
-				return nil, fmt.Errorf(`reform: %s has field %s with with duplicate "pk" label in "reform:" tag (first used by %s), it is not allowed`, res.Type, name.Name, res.Fields[res.PKFieldIndex].Name)
+				return nil, fmt.Errorf(`reform: %s has field %s with primary field tag (first used by %s), it is not allowed`, res.Type, f.Type, res.Fields[res.PKFieldIndex].Name)
 			}
 		}
 
 		res.Fields = append(res.Fields, FieldInfo{
-			Name:   name.Name,
+			Name:   fieldName,
 			PKType: pkType,
 			Column: column,
 		})
@@ -86,7 +122,7 @@ func parseStructTypeSpec(ts *ast.TypeSpec, str *ast.StructType) (*StructInfo, er
 	}
 
 	if len(res.Fields) == 0 {
-		return nil, fmt.Errorf(`reform: %s has no fields with "reform:" tag, it is not allowed`, res.Type)
+		return nil, fmt.Errorf(`reform: %s has no reform-active fields (forgot to add tag "reform:"?), it is not allowed`, res.Type)
 	}
 
 	err := checkFields(res)
@@ -115,6 +151,9 @@ func File(path string) ([]StructInfo, error) {
 		if !ok {
 			continue
 		}
+
+		imitateGorm := false
+
 		for _, spec := range gd.Specs {
 			// ast.Print(fset, spec)
 
@@ -131,6 +170,14 @@ func File(path string) ([]StructInfo, error) {
 			}
 			if doc == nil {
 				continue
+			}
+
+			optsMatches := magicReformOptionsComment.FindStringSubmatch(doc.Text())
+			if len(optsMatches) >= 2 {
+				switch optsMatches[1] {
+				case "imitateGorm":
+					imitateGorm = true
+				}
 			}
 
 			// ast.Print(fset, doc)
@@ -154,12 +201,13 @@ func File(path string) ([]StructInfo, error) {
 			}
 
 			// ast.Print(fset, ts)
-			s, err := parseStructTypeSpec(ts, str)
+			s, err := parseStructTypeSpec(ts, str, imitateGorm)
 			if err != nil {
 				return nil, err
 			}
 			s.SQLSchema = schema
 			s.SQLName = table
+			s.ImitateGorm = imitateGorm
 			res = append(res, *s)
 		}
 	}
