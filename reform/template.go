@@ -285,6 +285,11 @@ func (s *{{ .ScopeType }}) getWhereTailForFilter(filter {{ .FilterType }}) (tail
 
 	placeholderCounter := 0
 	for i := 0; i < numField; i++ {
+		tag := vT.Field(i).Tag
+		if tag.Get("sql") == "-" || tag.Get("reform") == "-" {
+			continue
+		}
+
 		f  := v.Field(i)
 		fT := f.Type()
 
