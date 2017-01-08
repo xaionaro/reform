@@ -155,6 +155,17 @@ var {{ .LogTableVar }} = &{{ .LogTableType }} {
 	z: new({{ .LogType }}).Values(),
 }
 
+{{- if eq .ImitateGorm true }}
+func (s {{ .Type }}) columnNameByFieldName(fieldName string) string {
+	switch (fieldName) {
+	{{- range $i, $f := .Fields }}
+	case "{{ $f.Name }}": return "{{ $f.Column }}"
+	{{- end }}
+	}
+	return ""
+}
+{{- end }}
+
 // String returns a string representation of this struct or record.
 func (s {{ .Type }}) String() string {
 	res := make([]string, {{ len .Fields }})
@@ -285,7 +296,8 @@ func (s *{{ .ScopeType }}) getWhereTailForFilter(filter {{ .FilterType }}) (tail
 
 	placeholderCounter := 0
 	for i := 0; i < numField; i++ {
-		tag := vT.Field(i).Tag
+		vTF := vT.Field(i)
+		tag := vTF.Tag
 		if tag.Get("sql") == "-" || tag.Get("reform") == "-" {
 			continue
 		}
@@ -304,11 +316,15 @@ func (s *{{ .ScopeType }}) getWhereTailForFilter(filter {{ .FilterType }}) (tail
 				}
 		}
 
+{{- if eq .ImitateGorm true }}
+		fieldName := s.columnNameByFieldName(vTF.Name)
+{{- else }}
 		vs := vT.Field(i)
-		rN := strings.Split(vs.Tag.Get("reform"), ",")[0]
+		fieldName := strings.Split(vs.Tag.Get("reform"), ",")[0]
+{{- end }}
 
 		placeholderCounter++
-		whereTailStringParts = append(whereTailStringParts, rN+" = "+s.db.Dialect.Placeholder(placeholderCounter)) // TODO: escape field name
+		whereTailStringParts = append(whereTailStringParts, fieldName+" = "+s.db.Dialect.Placeholder(placeholderCounter)) // TODO: escape field name
 		whereTailArgs        = append(whereTailArgs, f.Interface())
 	}
 
