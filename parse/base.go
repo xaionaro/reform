@@ -133,9 +133,12 @@ func parseStructFieldGormTag(tag string, fieldName string) (sqlName string, isPK
 	}*/
 
 	for _, part := range parts/*[1:]*/ {
-		switch part {
+		subParts := strings.Split(part, ":")
+		switch subParts[0] {
 		case "primary_key":
 			isPK = true
+		case "column":
+			sqlName = subParts[1]
 		default:
 			// TODO: Notify about the error
 		}

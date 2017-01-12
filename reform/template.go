@@ -1,24 +1,25 @@
 package main
 
 import (
-	"text/template"
 	"github.com/xaionaro/reform/parse"
+	"text/template"
 )
 
 // StructData represents struct info for XXX_reform.go file generation.
 type StructData struct {
 	parse.StructInfo
-	LogType		string
-	TableType       string
-	LogTableType    string
-	ScopeType	string
-	FilterType	string
+	LogType             string
+	TableType           string
+	LogTableType        string
+	ScopeType           string
+	FilterType          string
+	FilterPublicType    string
 	FilterShorthandType string
-	TableVar        string
-	LogTableVar     string
-	IsPrivateStruct bool
-	QuerierVar      string
-	ImitateGorm	bool
+	TableVar            string
+	LogTableVar         string
+	IsPrivateStruct     bool
+	QuerierVar          string
+	ImitateGorm         bool
 }
 
 var (
@@ -50,6 +51,10 @@ type {{ .ScopeType }} struct {
 	loggingAuthor  *string
 	loggingComment  string
 }
+
+{{- if .IsPrivateStruct }}
+type {{ .FilterPublicType }} {{ .Type }}
+{{- end }}
 
 {{- if .IsPrivateStruct }}
 type {{ .FilterShorthandType }} {{ .Type }}
@@ -230,7 +235,9 @@ func (s *{{ .Type }}) Scope() *{{ .ScopeType }} {
 // Sets DB to do queries
 func (s *{{ .Type }}) DB(db *reform.DB) (scope *{{ .ScopeType }}) { return s.Scope().DB(db) }
 func (s *{{ .ScopeType }}) DB(db *reform.DB) *{{ .ScopeType }} {
-	s.db = db
+	if db != nil {
+		s.db = db
+	}
 	return s
 }
 

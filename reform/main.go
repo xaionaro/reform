@@ -66,28 +66,29 @@ func processFile(path, file, pack string) error {
 		s += "Scope"
 
 		capitalizedModelName := strings.ToUpper(str.Type[0:1]) + str.Type[1:]
-		isPrivateStruct      := str.Type[0:1] == strings.ToLower(str.Type[0:1])
+		isPrivateStruct := str.Type[0:1] == strings.ToLower(str.Type[0:1])
 
 		var querierVar string
 		if isPrivateStruct {
 			querierVar = strings.ToUpper(str.Type[0:1]) + str.Type[1:]
 		} else {
-			querierVar = str.Type+"SQL"
+			querierVar = str.Type + "SQL"
 		}
 
 		sd := StructData{
-			LogType:	 str.Type+"LogRow",
-			StructInfo:	 str,
-			TableType:	 t,
-			LogTableType:	 t+"_log",
-			ScopeType:	 s,
-			FilterType:	 capitalizedModelName + "Filter",
+			LogType:             str.Type + "LogRow",
+			StructInfo:          str,
+			TableType:           t,
+			LogTableType:        t + "_log",
+			ScopeType:           s,
+			FilterType:          capitalizedModelName + "Filter",
+			FilterPublicType:    capitalizedModelName + "Type",
 			FilterShorthandType: capitalizedModelName + "F",
-			TableVar:	 v,
-			LogTableVar:	 v+"LogRow",
-			IsPrivateStruct: isPrivateStruct,
-			QuerierVar:	 querierVar,
-			ImitateGorm:	 str.ImitateGorm,
+			TableVar:            v,
+			LogTableVar:         v + "LogRow",
+			IsPrivateStruct:     isPrivateStruct,
+			QuerierVar:          querierVar,
+			ImitateGorm:         str.ImitateGorm,
 		}
 		sds = append(sds, sd)
 
