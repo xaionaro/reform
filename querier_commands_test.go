@@ -52,7 +52,7 @@ func (s *ReformSuite) TestInsertWithValues() {
 }
 
 func (s *ReformSuite) TestInsertWithPrimaryKey() {
-	setIdentityInsert(s.T(), s.q.Querier, "people", true)
+	setIdentityInsert(s.T(), s.q, "people", true)
 
 	newEmail := faker.Internet().Email()
 	person := &Person{ID: 50, Email: &newEmail}
@@ -106,7 +106,8 @@ func (s *ReformSuite) TestInsertColumns() {
 	t := time.Now()
 	newEmail := faker.Internet().Email()
 	person := &Person{Email: &newEmail, CreatedAt: t, UpdatedAt: &t}
-	err := s.q.InsertColumns(person, "name", "email", "created_at", "updated_at")
+	columns := []string{"name", "email", "created_at", "updated_at"}
+	err := s.q.InsertColumns(person, columns...)
 	s.NoError(err)
 	s.NotEqual(int32(0), person.ID)
 	s.Equal("", person.Name)
@@ -114,6 +115,7 @@ func (s *ReformSuite) TestInsertColumns() {
 	s.Equal(&newEmail, person.Email)
 	s.WithinDuration(t, person.CreatedAt, 2*time.Second)
 	s.WithinDuration(t, *person.UpdatedAt, 2*time.Second)
+	s.Equal([]string{"name", "email", "created_at", "updated_at"}, columns, "should not be changed")
 
 	person2, err := s.q.FindByPrimaryKeyFrom(PersonTable, person.ID)
 	s.NoError(err)
@@ -160,7 +162,7 @@ func (s *ReformSuite) TestInsertMulti() {
 }
 
 func (s *ReformSuite) TestInsertMultiWithPrimaryKeys() {
-	setIdentityInsert(s.T(), s.q.Querier, "people", true)
+	setIdentityInsert(s.T(), s.q, "people", true)
 
 	newEmail := faker.Internet().Email()
 	newName := faker.Name().Name()
@@ -260,6 +262,9 @@ func (s *ReformSuite) TestUpdateColumns() {
 		err := s.q.FindByPrimaryKeyTo(&person, 102)
 		s.NoError(err)
 
+		columnsCopy := make([]string, len(columns))
+		copy(columnsCopy, columns)
+
 		person.Name = p.Name
 		person.Email = p.Email
 		err = s.q.UpdateColumns(&person, columns...)
@@ -267,6 +272,7 @@ func (s *ReformSuite) TestUpdateColumns() {
 		s.Equal(personCreated, person.CreatedAt)
 		s.Require().NotNil(person.UpdatedAt)
 		s.WithinDuration(time.Now(), *person.UpdatedAt, 2*time.Second)
+		s.Equal(columnsCopy, columns, "should not be changed")
 
 		person2, err := s.q.FindByPrimaryKeyFrom(PersonTable, person.ID)
 		s.NoError(err)

@@ -2,6 +2,7 @@ package reform
 
 import (
 	"database/sql"
+	"fmt"
 	"reflect"
 	"time"
 )
@@ -9,6 +10,7 @@ import (
 // Querier performs queries and commands.
 type Querier struct {
 	dbtx DBTX
+	tag  string
 	Dialect
 	Logger         Logger
 	dbForCallbacks *DB
@@ -67,6 +69,25 @@ func (q *Querier) callStructMethod(str Struct, methodName string) error {
 		}
 	}
 	return nil
+}
+
+func (q *Querier) startQuery(command string) string {
+	if q.tag == "" {
+		return command
+	}
+	return command + " /* " + q.tag + " */"
+}
+
+// WithTag returns a copy of Querier with set tag. Returned Querier is tied to the same DB or TX.
+// See Tagging section in documentation for details.
+func (q *Querier) WithTag(format string, a ...interface{}) *Querier {
+	newQ := newQuerier(q.dbtx, q.Dialect, q.Logger, q.dbForCallbacks)
+	if len(a) == 0 {
+		newQ.tag = format
+	} else {
+		newQ.tag = fmt.Sprintf(format, a...)
+	}
+	return newQ
 }
 
 // QualifiedView returns quoted qualified view name.
