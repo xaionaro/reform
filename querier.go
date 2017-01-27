@@ -2,6 +2,7 @@ package reform
 
 import (
 	"database/sql"
+	"reflect"
 	"time"
 )
 
@@ -9,14 +10,16 @@ import (
 type Querier struct {
 	dbtx DBTX
 	Dialect
-	Logger Logger
+	Logger         Logger
+	dbForCallbacks *DB
 }
 
-func newQuerier(dbtx DBTX, dialect Dialect, logger Logger) *Querier {
+func newQuerier(dbtx DBTX, dialect Dialect, logger Logger, dbForCallbacks *DB) *Querier {
 	return &Querier{
-		dbtx:    dbtx,
-		Dialect: dialect,
-		Logger:  logger,
+		dbtx:           dbtx,
+		Dialect:        dialect,
+		Logger:         logger,
+		dbForCallbacks: dbForCallbacks,
 	}
 }
 
@@ -30,6 +33,40 @@ func (q *Querier) logAfter(query string, args []interface{}, d time.Duration, er
 	if q.Logger != nil {
 		q.Logger.After(query, args, d, err)
 	}
+}
+
+func (q *Querier) callStructMethod(str Struct, methodName string) error {
+	if method := reflect.ValueOf(str).MethodByName("AfterFind"); method.IsValid() {
+		switch f := method.Interface().(type) {
+		case func():
+			f()
+
+		case func(*DB):
+			f(q.dbForCallbacks)
+
+		case func(*Querier):
+			f(q)
+
+		case func(interface{}): // For compatibility with other ORMs
+			f(q.dbForCallbacks)
+
+		case func() error:
+			return f()
+
+		case func(*DB) error:
+			return f(q.dbForCallbacks)
+
+		case func(*Querier) error:
+			return f(q)
+
+		case func(interface{}) error: // For compatibility with other ORMS
+			return f(q.dbForCallbacks)
+
+		default:
+			// TODO: Response by an error
+		}
+	}
+	return nil
 }
 
 // QualifiedView returns quoted qualified view name.

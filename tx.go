@@ -23,15 +23,17 @@ type TX struct {
 }
 
 // NewTX creates new TX object for given SQL database transaction.
-func NewTX(tx *sql.Tx, dialect Dialect, logger Logger) *TX {
-	return NewTXFromInterface(tx, dialect, logger)
+// "dbForCallbacks" is passed to callback functions like "BeforeInsert" or "AfterFind" (can be nil)
+func NewTX(tx *sql.Tx, dialect Dialect, logger Logger, dbForCallbacks *DB) *TX {
+	return NewTXFromInterface(tx, dialect, logger, dbForCallbacks)
 }
 
 // NewTXFromInterface creates new TX object for given TXInterface.
 // Can be used for easier integration with existing code or for passing test doubles.
-func NewTXFromInterface(tx TXInterface, dialect Dialect, logger Logger) *TX {
+// "dbForCallbacks" is passed to callback functions like "BeforeInsert" or "AfterFind" (can be nil)
+func NewTXFromInterface(tx TXInterface, dialect Dialect, logger Logger, dbForCallbacks *DB) *TX {
 	return &TX{
-		Querier: newQuerier(tx, dialect, logger),
+		Querier: newQuerier(tx, dialect, logger, dbForCallbacks),
 		tx:      tx,
 	}
 }

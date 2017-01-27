@@ -83,27 +83,6 @@ type Record interface {
 	SetPK(pk interface{})
 }
 
-// BeforeInserter is an optional interface for Record which is used by Querier.Insert.
-// It can be used to set record's timestamp fields, convert timezones, change data precision, etc.
-// Returning error aborts operation.
-type BeforeInserter interface {
-	BeforeInsert() error
-}
-
-// BeforeUpdater is an optional interface for Record which is used by Querier.Update and Querier.UpdateColumns.
-// It can be used to set record's timestamp fields, convert timezones, change data precision, etc.
-// Returning error aborts operation.
-type BeforeUpdater interface {
-	BeforeUpdate() error
-}
-
-// AfterFinder is an optional interface for Record which is used by Querier's finders and selectors.
-// It can be used to convert timezones, change data precision, etc.
-// Returning error aborts operation.
-type AfterFinder interface {
-	AfterFind() error
-}
-
 // DBTX is an interface for database connection or transaction.
 // It's implemented by *sql.DB, *sql.Tx, *DB, *TX and *Querier.
 type DBTX interface {

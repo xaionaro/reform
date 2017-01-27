@@ -113,18 +113,11 @@ func (q *Querier) insert(str Struct, columns []string, values []interface{}) err
 }
 
 func (q *Querier) beforeInsert(str Struct) error {
-	if bi, ok := str.(BeforeInserter); ok {
-		err := bi.BeforeInsert()
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return q.callStructMethod(str, "BeforeInsert")
 }
 
 // Insert inserts a struct into SQL database table.
-// If str implements BeforeInserter, it calls BeforeInsert() before doing so.
+// If str has valid method "BeforeInsert", it calls BeforeInsert() before doing so.
 //
 // It fills record's primary key field.
 func (q *Querier) Insert(str Struct) error {
@@ -153,7 +146,7 @@ func (q *Querier) Insert(str Struct) error {
 
 // InsertColumns inserts a struct into SQL database table with specified columns.
 // Other columns are omitted from generated INSERT statement.
-// If str implements BeforeInserter, it calls BeforeInsert() before doing so.
+// If str has valid method "BeforeInsert", it calls BeforeInsert() before doing so.
 //
 // It fills record's primary key field.
 func (q *Querier) InsertColumns(str Struct, columns ...string) error {
@@ -171,7 +164,7 @@ func (q *Querier) InsertColumns(str Struct, columns ...string) error {
 }
 
 // InsertMulti inserts several structs into SQL database table with single query.
-// If they implement BeforeInserter, it calls BeforeInsert() before doing so.
+// If they has valid method "BeforeInsert", it calls BeforeInsert() before doing so.
 //
 // All structs should belong to the same view/table.
 // All records should either have or not have primary key set.
@@ -190,17 +183,11 @@ func (q *Querier) InsertMulti(structs ...Struct) error {
 		}
 	}
 
-	var err error
 	for _, str := range structs {
-		if bi, ok := str.(BeforeInserter); ok {
-			e := bi.BeforeInsert()
-			if err == nil {
-				err = e
-			}
+		err := q.callStructMethod(str, "BeforeInsert")
+		if err != nil {
+			return err
 		}
-	}
-	if err != nil {
-		return err
 	}
 
 	// check if all PK are present or all are absent
@@ -245,7 +232,7 @@ func (q *Querier) InsertMulti(structs ...Struct) error {
 		values = append(values, v...)
 	}
 
-	_, err = q.Exec(query, values...)
+	_, err := q.Exec(query, values...)
 	return err
 }
 
@@ -290,18 +277,11 @@ func (q *Querier) beforeUpdate(record Record) error {
 		return ErrNoPK
 	}
 
-	if bu, ok := record.(BeforeUpdater); ok {
-		err := bu.BeforeUpdate()
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return q.callStructMethod(record, "BeforeUpdate")
 }
 
 // Update updates all columns of row specified by primary key in SQL database table with given record.
-// If record implements BeforeUpdater, it calls BeforeUpdate() before doing so.
+// If record has valid method "BeforeUpdate", it calls BeforeUpdate() before doing so.
 //
 // Method returns ErrNoRows if no rows were updated.
 // Method returns ErrNoPK if primary key is not set.
@@ -325,7 +305,7 @@ func (q *Querier) Update(record Record) error {
 
 // UpdateColumns updates specified columns of row specified by primary key in SQL database table with given record.
 // Other columns are omitted from generated UPDATE statement.
-// If record implements BeforeUpdater, it calls BeforeUpdate() before doing so.
+// If record has valid method "BeforeUpdate", it calls BeforeUpdate() before doing so.
 //
 // Method returns ErrNoRows if no rows were updated.
 // Method returns ErrNoPK if primary key is not set.

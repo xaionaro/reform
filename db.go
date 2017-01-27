@@ -29,10 +29,9 @@ func NewDB(db *sql.DB, dialect Dialect, logger Logger) *DB {
 // NewDBFromInterface creates new DB object for given DBInterface.
 // Can be used for easier integration with existing code or for passing test doubles.
 func NewDBFromInterface(db DBInterface, dialect Dialect, logger Logger) *DB {
-	return &DB{
-		Querier: newQuerier(db, dialect, logger),
-		db:      db,
-	}
+	newDB := DB{db: db}
+	newDB.Querier = newQuerier(db, dialect, logger, &newDB)
+	return &newDB
 }
 
 // Begin starts a transaction.
@@ -44,7 +43,7 @@ func (db *DB) Begin() (*TX, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewTX(tx, db.Dialect, db.Logger), nil
+	return NewTX(tx, db.Dialect, db.Logger, db), nil
 }
 
 // InTransaction wraps function execution in transaction, rolling back it in case of error or panic,
