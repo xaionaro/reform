@@ -116,8 +116,13 @@ func (q *Querier) beforeInsert(str Struct) error {
 	return q.callStructMethod(str, "BeforeInsert")
 }
 
+func (q *Querier) afterInsert(str Struct) error {
+	return q.callStructMethod(str, "AfterInsert")
+}
+
 // Insert inserts a struct into SQL database table.
 // If str has valid method "BeforeInsert", it calls BeforeInsert() before doing so.
+// If str has valid method "AfterInsert", it calls AfterInsert() after doing so.
 //
 // It fills record's primary key field.
 func (q *Querier) Insert(str Struct) error {
@@ -141,12 +146,19 @@ func (q *Querier) Insert(str Struct) error {
 		}
 	}
 
-	return q.insert(str, columns, values)
+	err = q.insert(str, columns, values)
+
+	if err == nil {
+		return q.afterInsert(str)
+	}
+
+	return nil
 }
 
 // InsertColumns inserts a struct into SQL database table with specified columns.
 // Other columns are omitted from generated INSERT statement.
 // If str has valid method "BeforeInsert", it calls BeforeInsert() before doing so.
+// If str has valid method "AfterInsert", it calls AfterInsert() after doing so.
 //
 // It fills record's primary key field.
 func (q *Querier) InsertColumns(str Struct, columns ...string) error {
@@ -160,7 +172,13 @@ func (q *Querier) InsertColumns(str Struct, columns ...string) error {
 		return err
 	}
 
-	return q.insert(str, columns, values)
+	err = q.insert(str, columns, values)
+
+	if err == nil {
+		return q.afterInsert(str)
+	}
+
+	return nil
 }
 
 // InsertMulti inserts several structs into SQL database table with single query.
@@ -280,8 +298,13 @@ func (q *Querier) beforeUpdate(record Record) error {
 	return q.callStructMethod(record, "BeforeUpdate")
 }
 
+func (q *Querier) afterUpdate(record Record) error {
+	return q.callStructMethod(record, "AfterUpdate")
+}
+
 // Update updates all columns of row specified by primary key in SQL database table with given record.
 // If record has valid method "BeforeUpdate", it calls BeforeUpdate() before doing so.
+// If record has valid method "AfterUpdate", it calls AfterUpdate() before doing so.
 //
 // Method returns ErrNoRows if no rows were updated.
 // Method returns ErrNoPK if primary key is not set.
@@ -300,12 +323,18 @@ func (q *Querier) Update(record Record) error {
 	values = append(values[:pk], values[pk+1:]...)
 	columns = append(columns[:pk], columns[pk+1:]...)
 
-	return q.update(record, columns, values)
+	err = q.update(record, columns, values)
+
+	if err == nil {
+		return q.afterUpdate(record)
+	}
+	return nil
 }
 
 // UpdateColumns updates specified columns of row specified by primary key in SQL database table with given record.
 // Other columns are omitted from generated UPDATE statement.
 // If record has valid method "BeforeUpdate", it calls BeforeUpdate() before doing so.
+// If record has valid method "AfterUpdate", it calls AfterUpdate() before doing so.
 //
 // Method returns ErrNoRows if no rows were updated.
 // Method returns ErrNoPK if primary key is not set.
@@ -325,7 +354,12 @@ func (q *Querier) UpdateColumns(record Record, columns ...string) error {
 		return fmt.Errorf("reform: nothing to update")
 	}
 
-	return q.update(record, columns, values)
+	err = q.update(record, columns, values)
+
+	if err == nil {
+		return q.afterUpdate(record)
+	}
+	return nil
 }
 
 // Save saves record in SQL database table.
@@ -342,13 +376,28 @@ func (q *Querier) Save(record Record) error {
 	return q.Insert(record)
 }
 
+func (q *Querier) beforeDelete(record Record) error {
+	if !record.HasPK() {
+		return ErrNoPK
+	}
+
+	return q.callStructMethod(record, "BeforeDelete")
+}
+
+func (q *Querier) afterDelete(record Record) error {
+	return q.callStructMethod(record, "AfterDelete")
+}
+
 // Delete deletes record from SQL database table by primary key.
+// If record has valid method "BeforeDelete", it calls BeforeDelete() before doing so.
+// If record has valid method "AfterDelete", it calls AfterDelete() before doing so.
 //
 // Method returns ErrNoRows if no rows were deleted.
 // Method returns ErrNoPK if primary key is not set.
 func (q *Querier) Delete(record Record) error {
-	if !record.HasPK() {
-		return ErrNoPK
+	err := q.beforeDelete(record)
+	if err != nil {
+		return err
 	}
 
 	table := record.Table()
@@ -373,7 +422,7 @@ func (q *Querier) Delete(record Record) error {
 	if ra > 1 {
 		panic(fmt.Sprintf("reform: %d rows by DELETE by primary key. Please report this bug.", ra))
 	}
-	return nil
+	return q.afterDelete(record)
 }
 
 // DeleteFrom deletes rows from view with tail and args and returns a number of deleted rows.
