@@ -24,7 +24,24 @@ var (
 func processFile(path, file, pack string) error {
 	logger.Debugf("processFile: path=%q file=%q pack=%q", path, file, pack)
 
-	structs, err := parse.File(filepath.Join(path, file))
+	srcFilePath := filepath.Join(path, file)
+
+	ext := filepath.Ext(file)
+	base := strings.TrimSuffix(file, ext)
+	outFileName := base+"_reform"+ext
+
+	outFileInfo, outFileInfoErr := os.Stat(outFileName)
+	if outFileInfoErr == nil {
+		srcFileInfo, srcFileInfoErr := os.Stat(srcFilePath)
+		if srcFileInfoErr != nil {
+			return srcFileInfoErr
+		}
+		if outFileInfo.ModTime().UnixNano() > srcFileInfo.ModTime().UnixNano() {
+			logger.Debugf("source file \"%v\" is not modified, skipping.", file)
+		}
+	}
+
+	structs, err := parse.File(srcFilePath)
 	if err != nil {
 		return err
 	}
@@ -34,9 +51,7 @@ func processFile(path, file, pack string) error {
 		return nil
 	}
 
-	ext := filepath.Ext(file)
-	base := strings.TrimSuffix(file, ext)
-	f, err := os.Create(filepath.Join(path, base+"_reform"+ext))
+	f, err := os.Create(filepath.Join(path, outFileName))
 	if err != nil {
 		return err
 	}
