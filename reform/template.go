@@ -344,6 +344,11 @@ func (s *{{ .ScopeType }}) getWhereTailForFilter(filter {{ .FilterType }}) (tail
 func (s *{{ .ScopeType }}) parseWhereTailComponent(in_args []interface{}) (tail string, args []interface{}, err error) {
 	if len(in_args) > 0 {
 		switch arg := in_args[0].(type) {
+{{- if .IsTable }}
+		case int:
+			tail = "{{ .PKField.Column }} = ?"
+			args = []interface{}{in_args[0]}
+{{- end }}
 		case string:
 			tail = arg
 			args = in_args[1:]
@@ -488,6 +493,8 @@ func (s *{{ .ScopeType }}) Select(args ...interface{}) (result []{{.Type}}, err 
 
 	return
 }
+func (s *{{ .Type }}) SelectI(args ...interface{}) (result interface{}, err error) { return s.Scope().Select(args...) }
+func (s *{{ .ScopeType }}) SelectI(args ...interface{}) (result interface{}, err error) { return s.Select(args...) }
 
 // "First" a method to select and return only one record.
 func (s *{{ .Type }}) First(args ...interface{}) (result {{.Type}}, err error) { return s.Scope().First(args...) }
@@ -501,6 +508,8 @@ func (s *{{ .ScopeType }}) First(args ...interface{}) (result {{.Type}}, err err
 
 	return
 }
+func (s *{{ .Type }}) FirstI(args ...interface{}) (result interface{}, err error) { return s.Scope().First(args...) }
+func (s *{{ .ScopeType }}) FirstI(args ...interface{}) (result interface{}, err error) { return s.First(args...) }
 
 // Sets "GROUP BY".
 func (s *{{ .Type }}) Group(args ...interface{}) (scope *{{ .ScopeType }}) { return s.Scope().Group(args...) }
