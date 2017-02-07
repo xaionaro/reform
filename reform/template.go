@@ -480,6 +480,40 @@ func (s *{{ .ScopeType }}) SelectRows(query string, queryArgs ...interface{}) (r
 	return s.db.Query("SELECT "+query+" FROM `+"`"+`"+{{ .TableType }}{}.Schema()+"`+"`"+` "+tail, append(queryArgs, args...)...)
 }
 
+func (s *{{ .ScopeType }}) callStructMethod(str *{{ .Type }}, methodName string) error {
+	if method := reflect.ValueOf(str).MethodByName(methodName); method.IsValid() {
+		switch f := method.Interface().(type) {
+		case func():
+			f()
+
+		case func(*reform.DB):
+			f(s.db)
+
+		case func(*{{ .ScopeType }}):
+			f(s)
+
+		case func(interface{}): // For compatibility with other ORMs
+			f(s.db)
+
+		case func() error:
+			return f()
+
+		case func(*reform.DB) error:
+			return f(s.db)
+
+		case func(*{{ .ScopeType }}) error:
+			return f(s)
+
+		case func(interface{}) error: // For compatibility with other ORMS
+			return f(s.db)
+
+		default:
+			panic("Unknown type of method: \""+methodName+"\"")
+		}
+	}
+	return nil
+}
+
 // Select is a handy wrapper for SelectRows() and NextRow(): it makes a query and collects the result into a slice
 func (s {{ .Type }}) Select(args ...interface{}) (result []{{.Type}}, err error) { return s.Scope().Select(args...) }
 func (s *{{ .ScopeType }}) Select(args ...interface{}) (result []{{.Type}}, err error) {
@@ -500,6 +534,8 @@ func (s *{{ .ScopeType }}) Select(args ...interface{}) (result []{{.Type}}, err 
 		if err != nil {
 			return
 		}
+
+		s.callStructMethod(&item, "AfterFind")
 
 		result = append(result, item)
 	}
