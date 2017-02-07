@@ -65,6 +65,7 @@ func (q *Querier) callStructMethod(str Struct, methodName string) error {
 			return f(q.dbForCallbacks)
 
 		default:
+			panic("Unknown type of method: \""+methodName+"\"")
 			// TODO: Response by an error
 		}
 	}
