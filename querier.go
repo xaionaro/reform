@@ -38,7 +38,7 @@ func (q *Querier) logAfter(query string, args []interface{}, d time.Duration, er
 }
 
 func (q *Querier) callStructMethod(str Struct, methodName string) error {
-	if method := reflect.ValueOf(str).MethodByName("AfterFind"); method.IsValid() {
+	if method := reflect.ValueOf(str).MethodByName(methodName); method.IsValid() {
 		switch f := method.Interface().(type) {
 		case func():
 			f()
