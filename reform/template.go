@@ -27,6 +27,7 @@ var (
 // Generated with gopkg.in/reform.v1. Do not edit by hand.
 
 import (
+	"database/sql"
 	"fmt"
 	"reflect"
 	"strings"
@@ -75,22 +76,22 @@ type {{ .TableType }} struct {
 	z []interface{}
 }
 
-func (v *{{ .TableType }}) Schema() string {
+func (v {{ .TableType }}) Schema() string {
 	return v.s.SQLSchema
 }
 
 // Name returns a view or table name in SQL database ("{{ .SQLName }}").
-func (v *{{ .TableType }}) Name() string {
+func (v {{ .TableType }}) Name() string {
 	return v.s.SQLName
 }
 
 // Columns returns a new slice of column names for that view or table in SQL database.
-func (v *{{ .TableType }}) Columns() []string {
+func (v {{ .TableType }}) Columns() []string {
 	return {{ printf "%#v" .Columns }}
 }
 
 // NewStruct makes a new struct for that view or table.
-func (v *{{ .TableType }}) NewStruct() reform.Struct {
+func (v {{ .TableType }}) NewStruct() reform.Struct {
 	return new({{ .Type }})
 }
 
@@ -228,17 +229,23 @@ func (s *{{ .LogType }}) View() reform.View {
 }
 
 // Generate a scope for object
-func (s *{{ .Type }}) Scope() *{{ .ScopeType }} {
-	return &{{ .ScopeType }}{ {{ .Type }}: *s, db: defaultDB_{{ .Type }} }
+func (s {{ .Type }}) Scope() *{{ .ScopeType }} {
+	return &{{ .ScopeType }}{ {{ .Type }}: s, db: defaultDB_{{ .Type }} }
 }
 
 // Sets DB to do queries
-func (s *{{ .Type }}) DB(db *reform.DB) (scope *{{ .ScopeType }}) { return s.Scope().DB(db) }
+func (s {{ .Type }}) DB(db *reform.DB) (scope *{{ .ScopeType }}) { return s.Scope().DB(db) }
 func (s *{{ .ScopeType }}) DB(db *reform.DB) *{{ .ScopeType }} {
 	if db != nil {
 		s.db = db
 	}
 	return s
+}
+
+// Gets DB
+func (s {{ .Type }}) Get{{ if eq .ImitateGorm true }}Reform{{ end }}DB() (db *reform.DB) { return s.Scope().Get{{ if eq .ImitateGorm true }}Reform{{ end }}DB() }
+func (s {{ .ScopeType }}) Get{{ if eq .ImitateGorm true }}Reform{{ end }}DB() *reform.DB {
+	return s.db
 }
 
 // Sets default DB (to do not call the scope.DB() method every time)
@@ -412,7 +419,7 @@ func (s *{{ .ScopeType }}) getWhereTail() (tail string, whereTailArgs []interfac
 	return
 }
 
-func (s *{{ .Type }}) Where(args ...interface{}) (scope *{{ .ScopeType }}) { return s.Scope().Where(args...) }
+func (s {{ .Type }}) Where(args ...interface{}) (scope *{{ .ScopeType }}) { return s.Scope().Where(args...) }
 func (s *{{ .ScopeType }}) Where(in_args ...interface{}) *{{ .ScopeType }} {
 	s.where = append(s.where, in_args)
 	return s
@@ -462,8 +469,19 @@ func (s *{{ .ScopeType }}) getTail() (tail string, args []interface{}, err error
 
 }
 
-// Select is a wrapper for SelectRows() and NextRow(): it makes a query and collects the result into a slice
-func (s *{{ .Type }}) Select(args ...interface{}) (result []{{.Type}}, err error) { return s.Scope().Select(args...) }
+// SelectRows is a simple wrapper to get raw "sql.Rows"
+func (s {{ .Type }}) SelectRows(query string, args ...interface{}) (rows *sql.Rows, err error) { return s.Scope().SelectRows(query, args...) }
+func (s *{{ .ScopeType }}) SelectRows(query string, queryArgs ...interface{}) (rows *sql.Rows, err error) {
+	tail, args, err := s.getTail()
+	if err != nil {
+		return
+	}
+
+	return s.db.Query("SELECT "+query+" FROM `+"`"+`"+{{ .TableType }}{}.Schema()+"`+"`"+` "+tail, append(queryArgs, args...)...)
+}
+
+// Select is a handy wrapper for SelectRows() and NextRow(): it makes a query and collects the result into a slice
+func (s {{ .Type }}) Select(args ...interface{}) (result []{{.Type}}, err error) { return s.Scope().Select(args...) }
 func (s *{{ .ScopeType }}) Select(args ...interface{}) (result []{{.Type}}, err error) {
 	tail, args, err := s.Where(args...).getTail()
 	if err != nil {
@@ -493,11 +511,11 @@ func (s *{{ .ScopeType }}) Select(args ...interface{}) (result []{{.Type}}, err 
 
 	return
 }
-func (s *{{ .Type }}) SelectI(args ...interface{}) (result interface{}, err error) { return s.Scope().Select(args...) }
+func (s {{ .Type }}) SelectI(args ...interface{}) (result interface{}, err error) { return s.Scope().Select(args...) }
 func (s *{{ .ScopeType }}) SelectI(args ...interface{}) (result interface{}, err error) { return s.Select(args...) }
 
 // "First" a method to select and return only one record.
-func (s *{{ .Type }}) First(args ...interface{}) (result {{.Type}}, err error) { return s.Scope().First(args...) }
+func (s {{ .Type }}) First(args ...interface{}) (result {{.Type}}, err error) { return s.Scope().First(args...) }
 func (s *{{ .ScopeType }}) First(args ...interface{}) (result {{.Type}}, err error) {
 	tail, args, err := s.Limit(1).Where(args...).getTail()
 	if err != nil {
@@ -508,11 +526,11 @@ func (s *{{ .ScopeType }}) First(args ...interface{}) (result {{.Type}}, err err
 
 	return
 }
-func (s *{{ .Type }}) FirstI(args ...interface{}) (result interface{}, err error) { return s.Scope().First(args...) }
+func (s {{ .Type }}) FirstI(args ...interface{}) (result interface{}, err error) { return s.Scope().First(args...) }
 func (s *{{ .ScopeType }}) FirstI(args ...interface{}) (result interface{}, err error) { return s.First(args...) }
 
 // Sets "GROUP BY".
-func (s *{{ .Type }}) Group(args ...interface{}) (scope *{{ .ScopeType }}) { return s.Scope().Group(args...) }
+func (s {{ .Type }}) Group(args ...interface{}) (scope *{{ .ScopeType }}) { return s.Scope().Group(args...) }
 func (s *{{ .ScopeType }}) Group(argsI ...interface{}) (*{{ .ScopeType }}) {
 	for _,argI := range argsI {
 		s.groupBy = append(s.groupBy, argI.(string))
@@ -522,7 +540,7 @@ func (s *{{ .ScopeType }}) Group(argsI ...interface{}) (*{{ .ScopeType }}) {
 }
 
 // Sets order. Arguments should be passed by pairs column-{ASC,DESC}. For example Order("id", "ASC", "value" "DESC")
-func (s *{{ .Type }}) Order(args ...interface{}) (scope *{{ .ScopeType }}) { return s.Scope().Order(args...) }
+func (s {{ .Type }}) Order(args ...interface{}) (scope *{{ .ScopeType }}) { return s.Scope().Order(args...) }
 func (s *{{ .ScopeType }}) Order(argsI ...interface{}) (*{{ .ScopeType }}) {
 	switch len(argsI) {
 	case 0:
@@ -546,7 +564,7 @@ func (s *{{ .ScopeType }}) Order(argsI ...interface{}) (*{{ .ScopeType }}) {
 }
 
 // Sets limit.
-func (s *{{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Limit(limit int) (scope *{{ .ScopeType }}) { return s.Scope().Limit(limit) }
+func (s {{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Limit(limit int) (scope *{{ .ScopeType }}) { return s.Scope().Limit(limit) }
 func (s *{{ .ScopeType }}) Limit(limit int) (*{{ .ScopeType }}) {
 	s.limit = limit
 	return s
@@ -555,22 +573,22 @@ func (s *{{ .ScopeType }}) Limit(limit int) (*{{ .ScopeType }}) {
 {{- if .IsTable }}
 
 // "Reload" reloads record using Primary Key
-func (s *{{ .FilterType }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Reload(db *reform.DB) error { return (*{{ .Type }})(s).Reload(db) }
-func (s *{{ .Type }}) Reload(db *reform.DB) (err error) {
+func (s *{{ .FilterType }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Reload(db *reform.DB) error { return (*{{ .Type }})(s).{{ if eq .ImitateGorm true }}Reform{{ end }}Reload(db) }
+func (s *{{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Reload(db *reform.DB) (err error) {
 	return db.FindByPrimaryKeyTo(s, s.PKValue())
 }
 
 // Create and Insert inserts new record to DB
-func (s *{{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Create() (err error) { return s.Scope().Create() }
-func (s *{{ .ScopeType }}) Create() (err error) {
+func (s {{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Create() (err error) { return s.Scope().{{ if eq .ImitateGorm true }}Reform{{ end }}Create() }
+func (s *{{ .ScopeType }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Create() (err error) {
 	err = s.db.Insert(s)
 	if err == nil {
 		s.doLog("INSERT")
 	}
 	return err
 }
-func (s *{{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Insert() (err error) { return s.Scope().Insert() }
-func (s *{{ .ScopeType }}) Insert() (err error) {
+func (s {{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Insert() (err error) { return s.Scope().{{ if eq .ImitateGorm true }}Reform{{ end }}Insert() }
+func (s *{{ .ScopeType }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Insert() (err error) {
 	err = s.db.Insert(s)
 	if err == nil {
 		s.doLog("INSERT")
@@ -579,8 +597,8 @@ func (s *{{ .ScopeType }}) Insert() (err error) {
 }
 
 // Save inserts new record to DB is PK is zero and updates existing record if PK is not zero
-func (s *{{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Save() (err error) { return s.Scope().Save() }
-func (s *{{ .ScopeType }}) Save() (err error) {
+func (s {{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Save() (err error) { return s.Scope().{{ if eq .ImitateGorm true }}Reform{{ end }}Save() }
+func (s *{{ .ScopeType }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Save() (err error) {
 	err = s.db.Save(s)
 	if err == nil {
 		s.doLog("INSERT")
@@ -589,8 +607,8 @@ func (s *{{ .ScopeType }}) Save() (err error) {
 }
 
 // Update updates existing record in DB
-func (s *{{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Update() (err error) { return s.Scope().Update() }
-func (s *{{ .ScopeType }}) Update() (err error) {
+func (s {{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Update() (err error) { return s.Scope().{{ if eq .ImitateGorm true }}Reform{{ end }}Update() }
+func (s *{{ .ScopeType }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Update() (err error) {
 	err = s.db.Update(s)
 	if err == nil {
 		s.doLog("UPDATE")
@@ -599,8 +617,8 @@ func (s *{{ .ScopeType }}) Update() (err error) {
 }
 
 // Delete deletes existing record in DB
-func (s *{{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Delete() (err error) { return s.Scope().Delete() }
-func (s *{{ .ScopeType }}) Delete() (err error) {
+func (s {{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Delete() (err error) { return s.Scope().{{ if eq .ImitateGorm true }}Reform{{ end }}Delete() }
+func (s *{{ .ScopeType }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Delete() (err error) {
 	err = s.db.Delete(s)
 	if err == nil {
 		s.doLog("DELETE")
@@ -636,24 +654,24 @@ func (s *{{ .ScopeType }}) Log(enableLogging bool, author *string, commentFormat
 }
 
 // Table returns Table object for that record.
-func (s *{{ .Type }}) Table() reform.Table {
+func (s {{ .Type }}) Table() reform.Table {
 	return {{ .TableVar }}
 }
 
 // PKValue returns a value of primary key for that record.
 // Returned interface{} value is never untyped nil.
-func (s *{{ .Type }}) PKValue() interface{} {
+func (s {{ .Type }}) PKValue() interface{} {
 	return s.{{ .PKField.Name }}
 }
 
 // PKPointer returns a pointer to primary key field for that record.
 // Returned interface{} value is never untyped nil.
-func (s *{{ .Type }}) PKPointer() interface{} {
+func (s {{ .Type }}) PKPointer() interface{} {
 	return &s.{{ .PKField.Name }}
 }
 
 // HasPK returns true if record has non-zero primary key set, false otherwise.
-func (s *{{ .Type }}) HasPK() bool {
+func (s {{ .Type }}) HasPK() bool {
 	return s.{{ .PKField.Name }} != {{ .TableVar }}.z[{{ .TableVar }}.s.PKFieldIndex]
 }
 
