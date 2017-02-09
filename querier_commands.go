@@ -295,16 +295,8 @@ func (q *Querier) beforeUpdate(record Record) error {
 		return ErrNoPK
 	}
 
-<<<<<<< HEAD
 	return q.callStructMethod(record, "BeforeUpdate")
 }
-=======
-	if bu, ok := record.(BeforeUpdater); ok {
-		if err := bu.BeforeUpdate(); err != nil {
-			return err
-		}
-	}
->>>>>>> d2c209bc447a5cf562fdac52a993bfdf8bc051e6
 
 func (q *Querier) afterUpdate(record Record) error {
 	return q.callStructMethod(record, "AfterUpdate")
