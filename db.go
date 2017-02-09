@@ -97,7 +97,7 @@ func (db DB) OperatorAndPlaceholderOfValueForSQL(valueI interface{}, placeholder
 func (db DB) ValueForSQL(valueI interface{}) interface{} {
 	switch value := valueI.(type) {
 	case []int, []string, []float32, []float64, []int64:
-		return strings.Replace(fmt.Sprintf("%v", value), ` `, `" "`, -1)
+		return `"`+strings.Replace(strings.Trim(fmt.Sprintf("%v", value), "[]"), ` `, `", "`, -1)+`"`
 	case int, string, float32, float64, int64:
 		return value
 	case nil:
