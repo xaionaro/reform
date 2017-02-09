@@ -2,6 +2,7 @@ package reform
 
 import (
 	"database/sql"
+	"database/sql/driver"
 	"errors"
 )
 
@@ -162,10 +163,16 @@ type Dialect interface {
 	DefaultValuesMethod() DefaultValuesMethod
 }
 
-// Stringer represents any obhect with method "String() string" to stringify it's value
+// Stringer represents any object with method "String() string" to stringify it's value
 type Stringer interface {
-	// Returns stringifier representation on the object
+	// Returns stringifier representation of the object
 	String() string
+}
+
+// Stringer represents any object with method "Value() (driver.Value, error)" to SQL-ify it's value
+type DriverValuer interface {
+	// Returns SQL-fied representation of the object
+	Value() (driver.Value, error)
 }
 
 // check interface

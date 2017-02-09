@@ -355,14 +355,26 @@ func (s {{ .ScopeType }}) parseWhereTailComponent(in_args []interface{}, placeho
 		case int:
 			tail = "{{ .PKField.Column }} "+s.db.OperatorAndPlaceholderOfValueForSQL(in_args[0], *placeholderCounter)
 			*placeholderCounter++
-			args = []interface{}{s.db.ValueForSQL(in_args[0])}
+			args = s.db.ValueForSQL(in_args[0])
 {{- end }}
 		case string:
-			tail = arg
+			tailWords := s.db.SplitConditionByPlaceholders(arg)
 
-			for _, arg := range in_args[1:] {
-				args = append(args, s.db.ValueForSQL(arg))
+			if len(tailWords)-1 != len(in_args[1:]) {
+				// TODO: report about the error
 			}
+
+			for idx, rawNewArgs := range in_args[1:] {
+				newArgs := s.db.ValueForSQL(rawNewArgs)
+				newTailWords := []string{}
+				for range newArgs {
+					newTailWords = append(newTailWords, s.db.Dialect.Placeholder(*placeholderCounter))
+					*placeholderCounter++
+				}
+				tail += tailWords[idx] + strings.Join(newTailWords, ",")
+				args = append(args, newArgs...)
+			}
+			tail += tailWords[len(in_args[1:])]
 
 			return
 		case {{ .Type }}:

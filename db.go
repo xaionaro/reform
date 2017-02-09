@@ -3,6 +3,7 @@ package reform
 import (
 	"database/sql"
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 )
@@ -93,23 +94,80 @@ func (db DB) OperatorAndPlaceholderOfValueForSQL(valueI interface{}, placeholder
 	}
 }
 
-// ValueForSQL generates the value argument for sql.Exec() [not-the-first arguments]
-func (db DB) ValueForSQL(valueI interface{}) interface{} {
-	switch value := valueI.(type) {
-	case []int, []string, []float32, []float64, []int64:
-		return `"`+strings.Replace(strings.Trim(fmt.Sprintf("%v", value), "[]"), ` `, `", "`, -1)+`"`
-	case int, string, float32, float64, int64:
-		return value
-	case nil:
-		return nil
-	default:
-		stringer, ok := value.(Stringer)
-		if !ok {
-			return fmt.Sprintf("%v", value)
-		} else {
-			return stringer.String()
-		}
+/*
+func sliceWrapperValue(value interface{}) string {
+	return `"`+strings.Replace(strings.Trim(fmt.Sprintf("%v", value), "[]"), ` `, `", "`, -1)+`"`
+}
+
+type intSliceWrapper []int
+func (a intSliceWrapper) Value() (driver.Value, error) {
+	return sliceWrapperValue(a), nil
+}
+type int64SliceWrapper []int64
+func (a int64SliceWrapper) Value() (driver.Value, error) {
+	return sliceWrapperValue(a), nil
+}
+type stringSliceWrapper []string
+func (a stringSliceWrapper) Value() (driver.Value, error) {
+	return sliceWrapperValue(a), nil
+}
+type float32SliceWrapper []float32
+func (a float32SliceWrapper) Value() (driver.Value, error) {
+	return sliceWrapperValue(a), nil
+}
+type float64SliceWrapper []float64
+func (a float64SliceWrapper) Value() (driver.Value, error) {
+	return sliceWrapperValue(a), nil
+}*/
+
+func sliceWrapper(sliceI interface{}) (result []interface{}) {
+	slice := reflect.ValueOf(sliceI)
+	length := slice.Len()
+	for i:=0; i<length; i++ {
+		item := slice.Index(i)
+		result = append(result, item.Interface())
 	}
+
+	return
+}
+
+// ValueForSQL generates the value argument for sql.Exec() [not-the-first arguments]
+func (db DB) ValueForSQL(valueI interface{}) []interface{} {
+	switch value := valueI.(type) {
+	/*case []int:
+		return []interface{}{intSliceWrapper(value)}
+	case []int64:
+		return []interface{}{int64SliceWrapper(value)}
+	case []string:
+		return []interface{}{stringSliceWrapper(value)}
+	case []float32:
+		return []interface{}{float32SliceWrapper(value)}
+	case []float64:
+		return []interface{}{float64SliceWrapper(value)}*/
+	case []int, []int64, []string, []float32, []float64:
+		return sliceWrapper(value)
+	case int, string, float32, float64, int64:
+		return []interface{}{value}
+	case nil:
+		return []interface{}{}
+	default:
+		driverValuer, ok := value.(DriverValuer)
+		if ok {
+			return []interface{}{driverValuer}
+		}
+
+		stringer, ok := value.(Stringer)
+		if ok {
+			return []interface{}{stringer.String()}
+		}
+
+		return []interface{}{fmt.Sprintf("%v", value)}
+	}
+}
+
+func (db DB) SplitConditionByPlaceholders(condition string) []string {
+	// TODO: use Dialects. Right now it's hacky MySQL solution only :(
+	return strings.Split(condition, "?")
 }
 
 // check interface

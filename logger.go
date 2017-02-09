@@ -23,7 +23,16 @@ func Inspect(arg interface{}, addType bool) string {
 		s = fmt.Sprintf("%#q", arg)
 
 	default:
-		s = fmt.Sprintf("%v", arg)
+		driverValuer, ok := arg.(DriverValuer)
+		if ok {
+			v, err := driverValuer.Value()
+			if err != nil {
+				// TODO: report about the error
+			}
+			s = fmt.Sprintf("%v", v)
+		} else {
+			s = fmt.Sprintf("%v", arg)
+		}
 	}
 
 	if addType {
