@@ -145,7 +145,7 @@ func (q *Querier) Insert(str Struct) error {
 		}
 	}
 
-	err = q.insert(str, columns, values)
+	err := q.insert(str, columns, values)
 
 	if err == nil {
 		return q.afterInsert(str)
@@ -322,7 +322,7 @@ func (q *Querier) Update(record Record) error {
 	values = append(values[:pk], values[pk+1:]...)
 	columns = append(columns[:pk], columns[pk+1:]...)
 
-	err = q.update(record, columns, values)
+	err := q.update(record, columns, values)
 
 	if err == nil {
 		return q.afterUpdate(record)
