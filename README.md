@@ -36,6 +36,8 @@ type T1 struct {
 }
 ```
 
+`t2` columns will be: `var2` and `var3__var1`.
+
 ## Quick start
 
 `1`. Create a model
