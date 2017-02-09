@@ -162,6 +162,12 @@ type Dialect interface {
 	DefaultValuesMethod() DefaultValuesMethod
 }
 
+// Stringer represents any obhect with method "String() string" to stringify it's value
+type Stringer interface {
+	// Returns stringifier representation on the object
+	String() string
+}
+
 // check interface
 var (
 	_ DBTX = (*sql.DB)(nil)

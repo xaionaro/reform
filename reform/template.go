@@ -348,33 +348,38 @@ func (s *{{ .ScopeType }}) getWhereTailForFilter(filter {{ .FilterType }}) (tail
 }
 
 // parseQuerierArgs considers different ways of defning the tail (using scope properties or/and in_args)
-func (s *{{ .ScopeType }}) parseWhereTailComponent(in_args []interface{}) (tail string, args []interface{}, err error) {
+func (s {{ .ScopeType }}) parseWhereTailComponent(in_args []interface{}, placeholderCounter *int) (tail string, args []interface{}, err error) {
 	if len(in_args) > 0 {
 		switch arg := in_args[0].(type) {
 {{- if .IsTable }}
 		case int:
-			tail = "{{ .PKField.Column }} = ?"
-			args = []interface{}{in_args[0]}
+			tail = "{{ .PKField.Column }} "+s.db.OperatorAndPlaceholderOfValueForSQL(in_args[0], *placeholderCounter)
+			*placeholderCounter++
+			args = []interface{}{s.db.ValueForSQL(in_args[0])}
 {{- end }}
 		case string:
 			tail = arg
-			args = in_args[1:]
+
+			for _, arg := range in_args[1:] {
+				args = append(args, s.db.ValueForSQL(arg))
+			}
+
 			return
 		case {{ .Type }}:
 			if len(in_args) > 1 {
-				s = s.Where(in_args[1:]...)
+				s = *s.Where(in_args[1], in_args[2:]...)
 			}
 			tail, args, err = s.getWhereTailForFilter({{ .FilterType }}(arg))
 {{- if .IsPrivateStruct }}
 		case {{ .FilterShorthandType }}:
 			if len(in_args) > 1 {
-				s = s.Where(in_args[1:]...)
+				s = *s.Where(in_args[1], in_args[2:]...)
 			}
 			tail, args, err = s.getWhereTailForFilter({{ .FilterType }}(arg))
 {{- end }}
 		case {{ .FilterType }}:
 			if len(in_args) > 1 {
-				s = s.Where(in_args[1:]...)
+				s = *s.Where(in_args[1], in_args[2:]...)
 			}
 			tail, args, err = s.getWhereTailForFilter(arg)
 		default:
@@ -395,11 +400,13 @@ func (s *{{ .ScopeType }}) getWhereTail() (tail string, whereTailArgs []interfac
 		return
 	}
 
+	placeholderCounter := 0
+
 	for _,whereComponent := range s.where {
 		var whereTailStringPart string
 		var whereTailArgsPart []interface{}
 
-		whereTailStringPart, whereTailArgsPart, err = s.parseWhereTailComponent(whereComponent)
+		whereTailStringPart, whereTailArgsPart, err = s.parseWhereTailComponent(whereComponent, &placeholderCounter)
 		if err != nil {
 			return
 		}
@@ -419,9 +426,9 @@ func (s *{{ .ScopeType }}) getWhereTail() (tail string, whereTailArgs []interfac
 	return
 }
 
-func (s {{ .Type }}) Where(args ...interface{}) (scope *{{ .ScopeType }}) { return s.Scope().Where(args...) }
-func (s {{ .ScopeType }}) Where(in_args ...interface{}) *{{ .ScopeType }} {
-	s.where = append(s.where, in_args)
+func (s {{ .Type }}) Where(requiredArg interface{}, args ...interface{}) (scope *{{ .ScopeType }}) { return s.Scope().Where(requiredArg, args...) }
+func (s {{ .ScopeType }}) Where(requiredArg interface{}, in_args ...interface{}) *{{ .ScopeType }} {
+	s.where = append(s.where, append([]interface{}{ requiredArg }, in_args...))
 	return &s
 }
 func (s {{ .ScopeType }}) SetWhere(where [][]interface{}) *{{ .ScopeType }} {
@@ -520,8 +527,11 @@ func (s *{{ .ScopeType }}) callStructMethod(str *{{ .Type }}, methodName string)
 
 // Select is a handy wrapper for SelectRows() and NextRow(): it makes a query and collects the result into a slice
 func (s {{ .Type }}) Select(args ...interface{}) (result []{{.Type}}, err error) { return s.Scope().Select(args...) }
-func (s *{{ .ScopeType }}) Select(args ...interface{}) (result []{{.Type}}, err error) {
-	tail, args, err := s.Where(args...).getTail()
+func (s {{ .ScopeType }}) Select(args ...interface{}) (result []{{.Type}}, err error) {
+	if len(args) > 0 {
+		s = *s.Where(args[0], args[1:]...)
+	}
+	tail, args, err := s.getTail()
 	if err != nil {
 		return
 	}
@@ -552,12 +562,15 @@ func (s *{{ .ScopeType }}) Select(args ...interface{}) (result []{{.Type}}, err 
 	return
 }
 func (s {{ .Type }}) SelectI(args ...interface{}) (result interface{}, err error) { return s.Scope().Select(args...) }
-func (s *{{ .ScopeType }}) SelectI(args ...interface{}) (result interface{}, err error) { return s.Select(args...) }
+func (s {{ .ScopeType }}) SelectI(args ...interface{}) (result interface{}, err error) { return s.Select(args...) }
 
 // "First" a method to select and return only one record.
 func (s {{ .Type }}) First(args ...interface{}) (result {{.Type}}, err error) { return s.Scope().First(args...) }
-func (s *{{ .ScopeType }}) First(args ...interface{}) (result {{.Type}}, err error) {
-	tail, args, err := s.Limit(1).Where(args...).getTail()
+func (s {{ .ScopeType }}) First(args ...interface{}) (result {{.Type}}, err error) {
+	if len(args) > 0 {
+		s = *s.Where(args[0], args[1:]...)
+	}
+	tail, args, err := s.Limit(1).getTail()
 	if err != nil {
 		return
 	}
@@ -567,7 +580,7 @@ func (s *{{ .ScopeType }}) First(args ...interface{}) (result {{.Type}}, err err
 	return
 }
 func (s {{ .Type }}) FirstI(args ...interface{}) (result interface{}, err error) { return s.Scope().First(args...) }
-func (s *{{ .ScopeType }}) FirstI(args ...interface{}) (result interface{}, err error) { return s.First(args...) }
+func (s {{ .ScopeType }}) FirstI(args ...interface{}) (result interface{}, err error) { return s.First(args...) }
 
 // Sets "GROUP BY".
 func (s {{ .Type }}) Group(args ...interface{}) (scope *{{ .ScopeType }}) { return s.Scope().Group(args...) }

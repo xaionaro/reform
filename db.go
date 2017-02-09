@@ -2,6 +2,8 @@ package reform
 
 import (
 	"database/sql"
+	"fmt"
+	"strings"
 	"time"
 )
 
@@ -75,6 +77,39 @@ func (db *DB) InTransaction(f func(t *TX) error) error {
 		committed = true
 	}
 	return err
+}
+
+// OperatorAndPlaceholderOfValueForSQL generates an operator and placeholder for a value intor a condition into SQL query (for exampel "= ?") for the first argument of sql.Exec()
+func (db DB) OperatorAndPlaceholderOfValueForSQL(valueI interface{}, placeholderCounter int) string {
+	switch valueI.(type) {
+	case []int, []string, []float32, []float64, []int64:
+		return " IN ("+db.Dialect.Placeholder(placeholderCounter)+")"
+	case int, string, float32, float64, int64:
+		return " = "+db.Dialect.Placeholder(placeholderCounter)
+	case nil:
+		return " IS NULL"
+	default:
+		return " = "+db.Dialect.Placeholder(placeholderCounter)
+	}
+}
+
+// ValueForSQL generates the value argument for sql.Exec() [not-the-first arguments]
+func (db DB) ValueForSQL(valueI interface{}) interface{} {
+	switch value := valueI.(type) {
+	case []int, []string, []float32, []float64, []int64:
+		return strings.Replace(fmt.Sprintf("%v", value), ` `, `" "`, -1)
+	case int, string, float32, float64, int64:
+		return value
+	case nil:
+		return nil
+	default:
+		stringer, ok := value.(Stringer)
+		if !ok {
+			return fmt.Sprintf("%v", value)
+		} else {
+			return stringer.String()
+		}
+	}
 }
 
 // check interface
