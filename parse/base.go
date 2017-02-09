@@ -14,9 +14,19 @@ import (
 
 // FieldInfo represents information about struct field.
 type FieldInfo struct {
-	Name   string // field name as defined in source file, e.g. Name
-	PKType string // primary key field type as defined in source file, e.g. string
-	Column string // SQL database column name from "reform:" struct field tag, e.g. name
+	Name       string // field name as defined in source file, e.g. Name
+	PKType     string // primary key field type as defined in source file, e.g. string
+	Column     string // SQL database column name from "reform:" struct field tag, e.g. name
+	FieldsPath []FieldInfo // A path to the field via nested structures
+}
+
+func (f FieldInfo) FullName() string {
+	var prefix string
+	for _, step := range f.FieldsPath {
+		prefix += step.Name + "."
+	}
+
+	return prefix + f.Name
 }
 
 // StructInfo represents information about struct.
@@ -85,22 +95,30 @@ func AssertUpToDate(si *StructInfo, obj interface{}) {
 }
 
 // parseStructFieldTag is used by both file and runtime parsers
-func parseStructFieldTag(tag string) (sqlName string, isPK bool) {
+func parseStructFieldTag(tag string) (sqlName string, isPK bool, embedded string) {
 	parts := strings.Split(tag, ",")
-	if len(parts) == 0 || len(parts) > 2 {
+	if len(parts) == 0 {
 		return
 	}
 
-	if len(parts) == 2 {
-		switch parts[1] {
-		case "pk":
-			isPK = true
-		default:
-			return
+	sqlName = parts[0]
+
+	if len(parts) > 1 {
+		parts = parts[1:]
+		for _, part := range parts {
+			subParts := strings.Split(part, ":")
+			switch subParts[0] {
+			case "pk":
+				isPK = true
+			case "embedded":
+				embedded = subParts[1]
+			default:
+				// TODO: notify about the error
+				return
+			}
 		}
 	}
 
-	sqlName = parts[0]
 	return
 }
 
@@ -110,14 +128,14 @@ func toGormFieldName(fieldName string) (gormFieldName string) {
 }
 
 // parseStructFieldGormTag is the same as parseStructFieldTag() but for case if option "imitateGorm" is enabled
-func parseStructFieldGormTag(tag string, fieldName string) (sqlName string, isPK bool) {
+func parseStructFieldGormTag(tag string, fieldName string) (sqlName string, isPK bool, embedded string, structFile string) {
 	defer func() {
 		if sqlName == "" {
 			sqlName = toGormFieldName(fieldName)
 		}
 	}()
 
-	parts := strings.Split(tag, ",")
+	parts := strings.Split(tag, ";")
 	if len(parts) <= 1 {
 		isPK = fieldName == "Id"
 	}
@@ -139,6 +157,10 @@ func parseStructFieldGormTag(tag string, fieldName string) (sqlName string, isPK
 			isPK = true
 		case "column":
 			sqlName = subParts[1]
+		case "embedded":
+			embedded = subParts[1]
+		case "file":
+			structFile = subParts[1]
 		default:
 			// TODO: Notify about the error
 		}

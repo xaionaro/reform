@@ -19,7 +19,22 @@ Added functionality:
 * `object.Update()` — updates object properties using it's primary key
 * `object.Save()` — saves new object if primary key is zeroed or updates object properties using it's primary key if it's not zeroed
 
-Also you can add a magic comment `//reformOptions:imitateGorm` to act more like [gorm](https://github.com/jinzhu/gorm): automatically generate column names and use tag "gorm" instead of "reform".
+Also:
+* you can add a magic comment `//reformOptions:imitateGorm` to act more like [gorm](https://github.com/jinzhu/gorm): automatically generate column names and use tag "gorm" instead of "reform".
+* you can use nested (embedded) structures, like:
+```go
+//go:generate reform
+
+//reform:t2
+type T2 struct {
+	Var2 int `reform:"var2"`
+	Var3 T1  `reform:",embedded"`
+}
+
+type T1 struct {
+	Var1 int `reform:"var1"`
+}
+```
 
 ## Quick start
 

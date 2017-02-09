@@ -35,9 +35,19 @@ func getFieldTag(f *ast.Field) reflect.StructTag {
 	return reflect.StructTag("")
 }
 
-func parseStructTypeSpec(ts *ast.TypeSpec, str *ast.StructType, imitateGorm bool) (*StructInfo, error) {
+func parseStructTypeSpec(ts *ast.TypeSpec, str *ast.StructType, imitateGorm bool, fieldsPath []FieldInfo, forceParse bool) (*StructInfo, error) {
+	var prefix string
+	if len(fieldsPath) > 0 {
+		prefix = fieldsPath[len(fieldsPath)-1].Column + "__"
+	}
+
+	var typeName string
+	if ts != nil {
+		typeName = ts.Name.Name
+	}
+
 	res := &StructInfo{
-		Type:         ts.Name.Name,
+		Type:         typeName,
 		PKFieldIndex: -1,
 	}
 
@@ -91,34 +101,73 @@ func parseStructTypeSpec(ts *ast.TypeSpec, str *ast.StructType, imitateGorm bool
 		// parse tag and type
 		var column string
 		var isPK bool
+		var embedded string
+		var structFile string
 		if imitateGorm {
-			column, isPK = parseStructFieldGormTag(tagString, fieldName)
+			column, isPK, embedded, structFile = parseStructFieldGormTag(tagString, fieldName)
 		} else {
-			column, isPK = parseStructFieldTag(tagString)
+			column, isPK, embedded = parseStructFieldTag(tagString)
+			structFile = embedded
+		}
+		if isPK && (embedded != "") {
+			return nil, fmt.Errorf(`reform: %s has field %s (of type %s) that is the primary key and an embedded structure in the same time`, res.Type, fieldName, f.Type)
 		}
 		if column == "" {
-			return nil, fmt.Errorf(`reform: %s has field %s with invalid "reform:"/"gorm:" tag value, it is not allowed`, res.Type, f.Type)
+			return nil, fmt.Errorf(`reform: %s has field %s (of type %s) with invalid "reform:"/"gorm:" tag value, it is not allowed`, res.Type, fieldName, f.Type)
 		}
 		var pkType string
 		if isPK {
 			pkType = fileGoType(f.Type)
 			if strings.HasPrefix(pkType, "*") {
-				return nil, fmt.Errorf(`reform: %s has pointer field %s with a primary field tag, it is not allowed`, res.Type, f.Type)
+				return nil, fmt.Errorf(`reform: %s has pointer field %s (of type %s) with a primary field tag, it is not allowed`, res.Type, fieldName, f.Type)
 			}
 			if res.PKFieldIndex >= 0 {
-				return nil, fmt.Errorf(`reform: %s has field %s with primary field tag (first used by %s), it is not allowed`, res.Type, f.Type, res.Fields[res.PKFieldIndex].Name)
+				return nil, fmt.Errorf(`reform: %s has field %s (of type %s) with primary field tag (first used by %s), it is not allowed`, res.Type, fieldName, f.Type, res.Fields[res.PKFieldIndex].Name)
 			}
 		}
 
-		res.Fields = append(res.Fields, FieldInfo{
-			Name:   fieldName,
-			PKType: pkType,
-			Column: column,
-		})
+		fieldInfo := FieldInfo{
+			Name:       fieldName,
+			PKType:     pkType,
+			Column:     prefix+column,
+			FieldsPath: fieldsPath,
+		}
+
+		if embedded == "" {
+			res.Fields = append(res.Fields, fieldInfo)
+		} else {
+			if structFile == "" {
+				return nil, fmt.Errorf(`reform: %s has field %s of type %s but the file with the referenced structure is not set`, res.Type, fieldName, f.Type)
+			}
+
+			ident := f.Type.(*ast.Ident)
+
+			structInfos, err := file(structFile, &imitateGorm, append(fieldsPath, fieldInfo), true)
+			if err != nil {
+				return nil, fmt.Errorf(`reform: %s has field %s of type %s that uses file %s. Got error while parsing the file: %s`, res.Type, fieldName, f.Type, structFile, err.Error())
+			}
+			found := false
+			for _, structInfo := range structInfos {
+				if structInfo.Type == ident.String() {
+					nestedFields := structInfo.Fields
+					//fmt.Printf("nestedFields == %v\n", nestedFields)
+					res.Fields = append(res.Fields, nestedFields...)
+					found = true
+					break
+				}
+			}
+			if !found {
+				return nil, fmt.Errorf(`reform: %s has field %s that references to file %s, but the file doesn't have a structure %s`, res.Type, fieldName, structFile, f.Type)
+			}
+		}
 		if isPK {
 			res.PKFieldIndex = n
 		}
 		n++
+	}
+
+	if forceParse {	// TODO: Re-enable checkes and error reporting for forceParse == true
+		return res, nil
 	}
 
 	if len(res.Fields) == 0 {
@@ -134,6 +183,10 @@ func parseStructTypeSpec(ts *ast.TypeSpec, str *ast.StructType, imitateGorm bool
 
 // File parses given file and returns found structs information.
 func File(path string) ([]StructInfo, error) {
+	return file(path, nil, []FieldInfo{}, false)
+}
+
+func file(path string, forceImitateGorm *bool, fieldsPath []FieldInfo, forceParse bool) ([]StructInfo, error) {
 	// parse file
 	fset := token.NewFileSet()
 	fileNode, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
@@ -154,42 +207,54 @@ func File(path string) ([]StructInfo, error) {
 		imitateGorm := false
 
 		for _, spec := range gd.Specs {
-			// ast.Print(fset, spec)
-
 			ts, ok := spec.(*ast.TypeSpec)
 			if !ok {
 				continue
 			}
-
-			// magic comment may be attached to "type Foo struct" (TypeSpec)
-			// or to "type (" (GenDecl)
 			doc := ts.Doc
 			if doc == nil && len(gd.Specs) == 1 {
 				doc = gd.Doc
 			}
-			if doc == nil {
-				continue
-			}
+			// magic comment may be attached to "type Foo struct" (TypeSpec)
+			// or to "type (" (GenDecl)
 
-			optsMatches := magicReformOptionsComment.FindStringSubmatch(doc.Text())
-			if len(optsMatches) >= 2 {
-				switch optsMatches[1] {
-				case "imitateGorm":
-					imitateGorm = true
+			if !forceParse {
+				if doc == nil {
+					continue
 				}
 			}
 
-			// ast.Print(fset, doc)
-			sm := magicReformComment.FindStringSubmatch(doc.Text())
-			if len(sm) < 2 {
-				continue
+			if doc != nil {
+				optsMatches := magicReformOptionsComment.FindStringSubmatch(doc.Text())
+				if len(optsMatches) >= 2 {
+					switch optsMatches[1] {
+					case "imitateGorm":
+						imitateGorm = true
+					}
+				}
 			}
-			parts := strings.SplitN(sm[1], ".", 2)
+
+			var sm []string
+			if doc != nil {
+				sm = magicReformComment.FindStringSubmatch(doc.Text())
+			}
+			if !forceParse {
+				if len(sm) < 2 {
+					continue
+				}
+			}
+			var parts []string
+			if len(sm) >= 2 {
+				parts = strings.SplitN(sm[1], ".", 2)
+			}
 			var schema string
 			if len(parts) == 2 {
 				schema = parts[0]
 			}
-			table := parts[len(parts)-1]
+			var table string
+			if len(parts) >= 1 {
+				table = parts[len(parts)-1]
+			}
 
 			str, ok := ts.Type.(*ast.StructType)
 			if !ok {
@@ -199,8 +264,12 @@ func File(path string) ([]StructInfo, error) {
 				continue
 			}
 
+			if forceImitateGorm != nil {
+				imitateGorm = *forceImitateGorm
+			}
+
 			// ast.Print(fset, ts)
-			s, err := parseStructTypeSpec(ts, str, imitateGorm)
+			s, err := parseStructTypeSpec(ts, str, imitateGorm, fieldsPath, forceParse)
 			if err != nil {
 				return nil, err
 			}

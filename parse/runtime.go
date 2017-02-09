@@ -24,6 +24,10 @@ func objectGoType(t reflect.Type, structT reflect.Type) string {
 
 // Object extracts struct information from given object.
 func Object(obj interface{}, schema, table string, imitateGorm bool) (res *StructInfo, err error) {
+	return object(reflect.ValueOf(obj).Elem().Type(), schema, table, imitateGorm, []FieldInfo{})
+}
+
+func object(t reflect.Type, schema, table string, imitateGorm bool, fieldsPath []FieldInfo) (res *StructInfo, err error) {
 	// convert any panic to error
 	defer func() {
 		p := recover()
@@ -37,12 +41,16 @@ func Object(obj interface{}, schema, table string, imitateGorm bool) (res *Struc
 		}
 	}()
 
-	t := reflect.ValueOf(obj).Elem().Type()
 	res = &StructInfo{
 		Type:         t.Name(),
 		SQLSchema:    schema,
 		SQLName:      table,
 		PKFieldIndex: -1,
+	}
+
+	var prefix string
+	if len(fieldsPath) > 0 {
+		prefix = fieldsPath[len(fieldsPath)-1].Column + "__"
 	}
 
 	var n int
@@ -87,10 +95,16 @@ func Object(obj interface{}, schema, table string, imitateGorm bool) (res *Struc
 		// parse tag and type
 		var column string
 		var isPK bool
+		var embedded string
+		var structFile string
 		if imitateGorm {
-			column, isPK = parseStructFieldGormTag(tagString, fieldName)
+			column, isPK, embedded, structFile = parseStructFieldGormTag(tagString, fieldName)
 		} else {
-			column, isPK = parseStructFieldTag(tagString)
+			column, isPK, embedded = parseStructFieldTag(tagString)
+			structFile = embedded
+		}
+		if isPK && (embedded != "") {
+			return nil, fmt.Errorf(`reform: %s has field %s that is the primary key and an embedded structure in the same time`, res.Type, f.Type)
 		}
 		if column == "" {
 			return nil, fmt.Errorf(`reform: %s has field %s with invalid "reform:"/"gorm:" tag value, it is not allowed`, res.Type, fieldName)
@@ -106,11 +120,22 @@ func Object(obj interface{}, schema, table string, imitateGorm bool) (res *Struc
 			}
 		}
 
-		res.Fields = append(res.Fields, FieldInfo{
-			Name:   fieldName,
-			PKType: pkType,
-			Column: column,
-		})
+		fieldInfo := FieldInfo{
+			Name:       fieldName,
+			PKType:     pkType,
+			Column:     prefix+column,
+			FieldsPath: fieldsPath,
+		}
+
+		if embedded == "" {
+			res.Fields = append(res.Fields, fieldInfo)
+		} else {
+			structInfo, err := object(f.Type, "", "", imitateGorm, append(fieldsPath, fieldInfo))
+			if err != nil {
+				return nil, fmt.Errorf(`reform: %s has field %s of type %s. Got error while getting structure information of the object: %s`, res.Type, fieldName, f.Type, structFile, err.Error())
+			}
+			res.Fields = append(res.Fields, structInfo.Fields...)
+		}
 		if isPK {
 			res.PKFieldIndex = n
 		}

@@ -176,14 +176,14 @@ func (s {{ .Type }}) columnNameByFieldName(fieldName string) string {
 func (s {{ .Type }}) String() string {
 	res := make([]string, {{ len .Fields }})
 	{{- range $i, $f := .Fields }}
-	res[{{ $i }}] = "{{ $f.Name }}: " + reform.Inspect(s.{{ $f.Name }}, true)
+	res[{{ $i }}] = "{{ $f.Name }}: " + reform.Inspect(s.{{ $f.FullName }}, true)
 	{{- end }}
 	return strings.Join(res, ", ")
 }
 func (s {{ .LogType }}) String() string {
 	res := make([]string, {{ len .ToLog.Fields }})
 	{{- range $i, $f := .ToLog.Fields }}
-	res[{{ $i }}] = "{{ $f.Name }}: " + reform.Inspect(s.{{ $f.Name }}, true)
+	res[{{ $i }}] = "{{ $f.Name }}: " + reform.Inspect(s.{{ $f.FullName }}, true)
 	{{- end }}
 	return strings.Join(res, ", ")
 }
@@ -192,7 +192,7 @@ func (s {{ .LogType }}) String() string {
 // Returned interface{} values are never untyped nils.
 func (s *{{ .Type }}) Values() []interface{} {
 	return []interface{}{ {{- range .Fields }}
-		s.{{ .Name }}, {{- end }}
+		s.{{ .FullName }}, {{- end }}
 	}
 }
 func (s *{{ .LogType }}) Values() []interface{} {
@@ -208,7 +208,7 @@ func (s *{{ .LogType }}) Values() []interface{} {
 // Returned interface{} values are never untyped nils.
 func (s *{{ .Type }}) Pointers() []interface{} {
 	return []interface{}{ {{- range .Fields }}
-		&s.{{ .Name }}, {{- end }}
+		&s.{{ .FullName }}, {{- end }}
 	}
 }
 func (s *{{ .LogType }}) Pointers() []interface{} {
