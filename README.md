@@ -28,7 +28,7 @@ Also:
 //reform:t2
 type T2 struct {
 	Var2 int `reform:"var2"`
-	Var3 T1  `reform:",embedded"`
+	Var3 T1  `reform:"var3,embedded"`
 }
 
 type T1 struct {
