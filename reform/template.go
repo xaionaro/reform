@@ -420,9 +420,13 @@ func (s *{{ .ScopeType }}) getWhereTail() (tail string, whereTailArgs []interfac
 }
 
 func (s {{ .Type }}) Where(args ...interface{}) (scope *{{ .ScopeType }}) { return s.Scope().Where(args...) }
-func (s *{{ .ScopeType }}) Where(in_args ...interface{}) *{{ .ScopeType }} {
+func (s {{ .ScopeType }}) Where(in_args ...interface{}) *{{ .ScopeType }} {
 	s.where = append(s.where, in_args)
-	return s
+	return &s
+}
+func (s {{ .ScopeType }}) SetWhere(where [][]interface{}) *{{ .ScopeType }} {
+	s.where = where
+	return &s
 }
 
 // Compiles SQL tail for defined db/where/order/limit scope
@@ -567,17 +571,21 @@ func (s *{{ .ScopeType }}) FirstI(args ...interface{}) (result interface{}, err 
 
 // Sets "GROUP BY".
 func (s {{ .Type }}) Group(args ...interface{}) (scope *{{ .ScopeType }}) { return s.Scope().Group(args...) }
-func (s *{{ .ScopeType }}) Group(argsI ...interface{}) (*{{ .ScopeType }}) {
+func (s {{ .ScopeType }}) Group(argsI ...interface{}) (*{{ .ScopeType }}) {
 	for _,argI := range argsI {
 		s.groupBy = append(s.groupBy, argI.(string))
 	}
 
-	return s
+	return &s
+}
+func (s {{ .ScopeType }}) SetGroup(groupBy []string) (*{{ .ScopeType }}) {
+	s.groupBy = groupBy
+	return &s
 }
 
 // Sets order. Arguments should be passed by pairs column-{ASC,DESC}. For example Order("id", "ASC", "value" "DESC")
 func (s {{ .Type }}) Order(args ...interface{}) (scope *{{ .ScopeType }}) { return s.Scope().Order(args...) }
-func (s *{{ .ScopeType }}) Order(argsI ...interface{}) (*{{ .ScopeType }}) {
+func (s {{ .ScopeType }}) Order(argsI ...interface{}) (*{{ .ScopeType }}) {
 	switch len(argsI) {
 	case 0:
 	case 1:
@@ -596,7 +604,11 @@ func (s *{{ .ScopeType }}) Order(argsI ...interface{}) (*{{ .ScopeType }}) {
 		s.order = args
 	}
 
-	return s
+	return &s
+}
+func (s {{ .ScopeType }}) SetOrder(order []string) (*{{ .ScopeType }}) {
+	s.order = order
+	return &s
 }
 
 // Sets limit.
