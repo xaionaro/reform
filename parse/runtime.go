@@ -49,7 +49,7 @@ func Object(obj interface{}, schema, table string, imitateGorm bool) (res *Struc
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
 
-		// skip if tag "sql" is equals to "-"
+		// skip if tag "sql" or "reform" is equals to "-"
 		tag := f.Tag
 		if tag.Get("sql") == "-" || tag.Get("reform") == "-" {
 			continue
@@ -117,8 +117,7 @@ func Object(obj interface{}, schema, table string, imitateGorm bool) (res *Struc
 		n++
 	}
 
-	err = checkFields(res)
-	if err != nil {
+	if err = checkFields(res); err != nil {
 		return nil, err
 	}
 

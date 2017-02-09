@@ -34,6 +34,11 @@ func NewDBFromInterface(db DBInterface, dialect Dialect, logger Logger) *DB {
 	return &newDB
 }
 
+// DBInterface returns DBInterface associated with a given DB object.
+func (db *DB) DBInterface() DBInterface {
+	return db.db
+}
+
 // Begin starts a transaction.
 func (db *DB) Begin() (*TX, error) {
 	db.logBefore("BEGIN", nil)

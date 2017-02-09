@@ -126,8 +126,7 @@ func (q *Querier) afterInsert(str Struct) error {
 //
 // It fills record's primary key field.
 func (q *Querier) Insert(str Struct) error {
-	err := q.beforeInsert(str)
-	if err != nil {
+	if err := q.beforeInsert(str); err != nil {
 		return err
 	}
 
@@ -162,8 +161,7 @@ func (q *Querier) Insert(str Struct) error {
 //
 // It fills record's primary key field.
 func (q *Querier) InsertColumns(str Struct, columns ...string) error {
-	err := q.beforeInsert(str)
-	if err != nil {
+	if err := q.beforeInsert(str); err != nil {
 		return err
 	}
 
@@ -297,8 +295,16 @@ func (q *Querier) beforeUpdate(record Record) error {
 		return ErrNoPK
 	}
 
+<<<<<<< HEAD
 	return q.callStructMethod(record, "BeforeUpdate")
 }
+=======
+	if bu, ok := record.(BeforeUpdater); ok {
+		if err := bu.BeforeUpdate(); err != nil {
+			return err
+		}
+	}
+>>>>>>> d2c209bc447a5cf562fdac52a993bfdf8bc051e6
 
 func (q *Querier) afterUpdate(record Record) error {
 	return q.callStructMethod(record, "AfterUpdate")
@@ -311,8 +317,7 @@ func (q *Querier) afterUpdate(record Record) error {
 // Method returns ErrNoRows if no rows were updated.
 // Method returns ErrNoPK if primary key is not set.
 func (q *Querier) Update(record Record) error {
-	err := q.beforeUpdate(record)
-	if err != nil {
+	if err := q.beforeUpdate(record); err != nil {
 		return err
 	}
 
@@ -341,8 +346,7 @@ func (q *Querier) Update(record Record) error {
 // Method returns ErrNoRows if no rows were updated.
 // Method returns ErrNoPK if primary key is not set.
 func (q *Querier) UpdateColumns(record Record, columns ...string) error {
-	err := q.beforeUpdate(record)
-	if err != nil {
+	if err := q.beforeUpdate(record); err != nil {
 		return err
 	}
 

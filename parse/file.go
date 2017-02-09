@@ -125,8 +125,7 @@ func parseStructTypeSpec(ts *ast.TypeSpec, str *ast.StructType, imitateGorm bool
 		return nil, fmt.Errorf(`reform: %s has no reform-active fields (forgot to add tag "reform:"?), it is not allowed`, res.Type)
 	}
 
-	err := checkFields(res)
-	if err != nil {
+	if err := checkFields(res); err != nil {
 		return nil, err
 	}
 
