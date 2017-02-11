@@ -170,5 +170,9 @@ func (db DB) SplitConditionByPlaceholders(condition string) []string {
 	return strings.Split(condition, "?")
 }
 
+func (db DB) EscapeTableName(tableName string) string {
+	return db.Dialect.QuoteIdentifier(tableName)
+}
+
 // check interface
 var _ DBTX = (*DB)(nil)

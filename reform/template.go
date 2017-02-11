@@ -239,6 +239,10 @@ func (s *{{ .ScopeType }}) DB(db *reform.DB) *{{ .ScopeType }} {
 	if db != nil {
 		s.db = db
 	}
+	afterDBer, ok := interface{}(s).(reform.AfterDBer)
+	if ok {
+		afterDBer.AfterDB()
+	}
 	return s
 }
 
@@ -287,7 +291,7 @@ func (s *{{ .ScopeType }}) getOrderTail() (tail string, args []interface{}, err 
 			case 1:
 				orderDirection := orderStr
 
-				orderStringParts = append(orderStringParts, fieldName+" "+orderDirection) // TODO: escape field name
+				orderStringParts = append(orderStringParts, s.db.EscapeTableName(fieldName)+" "+orderDirection)
 		}
 	}
 
@@ -338,7 +342,7 @@ func (s *{{ .ScopeType }}) getWhereTailForFilter(filter {{ .FilterType }}) (tail
 {{- end }}
 
 		placeholderCounter++
-		whereTailStringParts = append(whereTailStringParts, fieldName+" = "+s.db.Dialect.Placeholder(placeholderCounter)) // TODO: escape field name
+		whereTailStringParts = append(whereTailStringParts, s.db.EscapeTableName(fieldName)+" = "+s.db.Dialect.Placeholder(placeholderCounter))
 		whereTailArgs        = append(whereTailArgs, f.Interface())
 	}
 
@@ -446,6 +450,23 @@ func (s {{ .ScopeType }}) Where(requiredArg interface{}, in_args ...interface{})
 func (s {{ .ScopeType }}) SetWhere(where [][]interface{}) *{{ .ScopeType }} {
 	s.where = where
 	return &s
+}
+func (s {{ .ScopeType }}) GetWhere() ([][]interface{}) {
+	return s.where
+}
+
+// Sets all scope-related parameters to be equal as in passed scope (as an argument)
+func (s {{ .ScopeType }}) Set{{ if eq .ImitateGorm true }}Reform{{ end }}Scope(anotherScope reform.{{ if eq .ImitateGorm true }}GormImitate{{ end }}Scope) *{{ .ScopeType }} {
+	s.where   = anotherScope.GetWhere()
+	s.order   = anotherScope.GetOrder()
+	s.groupBy = anotherScope.GetGroup()
+	s.limit   = anotherScope.GetLimit()
+	s.db      = anotherScope.Get{{ if eq .ImitateGorm true }}Reform{{ end }}DB()
+
+	return &s
+}
+func (s {{ .ScopeType }}) ISet{{ if eq .ImitateGorm true }}Reform{{ end }}Scope(anotherScope reform.{{ if eq .ImitateGorm true }}GormImitate{{ end }}Scope) reform.{{ if eq .ImitateGorm true }}GormImitate{{ end }}Scope {
+	return s.ISet{{ if eq .ImitateGorm true }}Reform{{ end }}Scope(anotherScope)
 }
 
 // Compiles SQL tail for defined db/where/order/limit scope
@@ -607,6 +628,9 @@ func (s {{ .ScopeType }}) SetGroup(groupBy []string) (*{{ .ScopeType }}) {
 	s.groupBy = groupBy
 	return &s
 }
+func (s {{ .ScopeType }}) GetGroup() ([]string) {
+	return s.groupBy
+}
 
 // Sets order. Arguments should be passed by pairs column-{ASC,DESC}. For example Order("id", "ASC", "value" "DESC")
 func (s {{ .Type }}) Order(args ...interface{}) (scope *{{ .ScopeType }}) { return s.Scope().Order(args...) }
@@ -635,12 +659,20 @@ func (s {{ .ScopeType }}) SetOrder(order []string) (*{{ .ScopeType }}) {
 	s.order = order
 	return &s
 }
+func (s {{ .ScopeType }}) GetOrder() ([]string) {
+	return s.order
+}
 
 // Sets limit.
 func (s {{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Limit(limit int) (scope *{{ .ScopeType }}) { return s.Scope().Limit(limit) }
 func (s *{{ .ScopeType }}) Limit(limit int) (*{{ .ScopeType }}) {
 	s.limit = limit
 	return s
+}
+
+// Gets limit
+func (s {{ .ScopeType }}) GetLimit() int {
+	return s.limit
 }
 
 {{- if .IsTable }}

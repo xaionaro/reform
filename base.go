@@ -169,10 +169,57 @@ type Stringer interface {
 	String() string
 }
 
-// Stringer represents any object with method "Value() (driver.Value, error)" to SQL-ify it's value
+// DriverValuer represents any object with method "Value() (driver.Value, error)" to SQL-ify it's value
 type DriverValuer interface {
 	// Returns SQL-fied representation of the object
 	Value() (driver.Value, error)
+}
+
+// AfterDBer represents any object with method "AfterDB()" to run routines required to be done after changing DB via method DB()
+type AfterDBer interface {
+	// Runs routines required to be done after changing DB via method DB()
+	AfterDB()
+}
+
+// Scope represents abstract scopes
+type ScopeAbstract interface {
+	// Get all entered parameters via method Where() (a slice of sub-slices, while every sub-slice complies to every Where() call)
+	GetWhere() [][]interface{}
+
+	// Get all entered parameters via method Order()
+	GetOrder() []string
+
+	// Get all entered parameters via method Group()
+	GetGroup() []string
+
+	// Get the last entered limit via method Limit()
+	GetLimit() int
+}
+type Scope interface {
+	ScopeAbstract
+
+	// Sets all scope-related parameters to be equal as in passed scope (as an argument)
+	ISetScope(Scope) Scope
+
+	GetDB() *DB
+
+	Create() error
+	Update() error
+	Save() error
+	Delete() error
+}
+type GormImitateScope interface {
+	ScopeAbstract
+
+	// Sets all scope-related parameters to be equal as in passed scope (as an argument)
+	ISetReformScope(GormImitateScope) GormImitateScope
+
+	GetReformDB() *DB
+
+	ReformCreate() error
+	ReformUpdate() error
+	ReformSave() error
+	ReformDelete() error
 }
 
 // check interface
