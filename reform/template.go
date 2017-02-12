@@ -381,6 +381,17 @@ func (s {{ .ScopeType }}) parseWhereTailComponent(in_args []interface{}, placeho
 			tail += tailWords[len(in_args[1:])]
 
 			return
+		case *{{ .Type }}:
+			in_args[0] = *arg
+			return s.parseWhereTailComponent(in_args, placeholderCounter)
+{{- if .IsPrivateStruct }}
+		case *{{ .FilterShorthandType }}:
+			in_args[0] = *arg
+			return s.parseWhereTailComponent(in_args, placeholderCounter)
+{{- end }}
+		case *{{ .FilterType }}:
+			in_args[0] = *arg
+			return s.parseWhereTailComponent(in_args, placeholderCounter)
 		case {{ .Type }}:
 			if len(in_args) > 1 {
 				s = *s.Where(in_args[1], in_args[2:]...)
@@ -399,7 +410,7 @@ func (s {{ .ScopeType }}) parseWhereTailComponent(in_args []interface{}, placeho
 			}
 			tail, args, err = s.getWhereTailForFilter(arg)
 		default:
-			err = fmt.Errorf("Invalid first element of \"in_args\" (%v). It should be a string or {{ .FilterType }}.", reflect.ValueOf(arg).Type().Name())
+			err = fmt.Errorf("Invalid first element of \"in_args\" (%T). It should be a string or {{ .FilterType }}.", arg)
 			return
 		}
 	}
