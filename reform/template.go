@@ -569,9 +569,17 @@ func (s *{{ .ScopeType }}) callStructMethod(str *{{ .Type }}, methodName string)
 	return nil
 }
 
+func (s {{ .ScopeType }}) checkDb() {
+	if s.db == nil {
+		panic("s.db == nil")
+	}
+}
+
 // Select is a handy wrapper for SelectRows() and NextRow(): it makes a query and collects the result into a slice
 func (s {{ .Type }}) Select(args ...interface{}) (result []{{.Type}}, err error) { return s.Scope().Select(args...) }
 func (s {{ .ScopeType }}) Select(args ...interface{}) (result []{{.Type}}, err error) {
+	s.checkDb()
+
 	if len(args) > 0 {
 		s = *s.Where(args[0], args[1:]...)
 	}
@@ -611,6 +619,8 @@ func (s {{ .ScopeType }}) SelectI(args ...interface{}) (result interface{}, err 
 // "First" a method to select and return only one record.
 func (s {{ .Type }}) First(args ...interface{}) (result {{.Type}}, err error) { return s.Scope().First(args...) }
 func (s {{ .ScopeType }}) First(args ...interface{}) (result {{.Type}}, err error) {
+	s.checkDb()
+
 	if len(args) > 0 {
 		s = *s.Where(args[0], args[1:]...)
 	}
@@ -697,15 +707,12 @@ func (s *{{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Reload(db *ref
 // Create and Insert inserts new record to DB
 func (s {{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Create() (err error) { return s.Scope().{{ if eq .ImitateGorm true }}Reform{{ end }}Create() }
 func (s *{{ .ScopeType }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Create() (err error) {
-	err = s.db.Insert(s)
-	if err == nil {
-		s.doLog("INSERT")
-	}
-	return err
+	return s.{{ if eq .ImitateGorm true }}Reform{{ end }}Insert()
 }
 func (s {{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Insert() (err error) { return s.Scope().{{ if eq .ImitateGorm true }}Reform{{ end }}Insert() }
 func (s *{{ .ScopeType }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Insert() (err error) {
-	err = s.db.Insert(s)
+	s.checkDb()
+	err = s.db.Insert(&s.{{ .Type }})
 	if err == nil {
 		s.doLog("INSERT")
 	}
@@ -715,7 +722,8 @@ func (s *{{ .ScopeType }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Insert() 
 // Save inserts new record to DB is PK is zero and updates existing record if PK is not zero
 func (s {{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Save() (err error) { return s.Scope().{{ if eq .ImitateGorm true }}Reform{{ end }}Save() }
 func (s *{{ .ScopeType }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Save() (err error) {
-	err = s.db.Save(s)
+	s.checkDb()
+	err = s.db.Save(&s.{{ .Type }})
 	if err == nil {
 		s.doLog("INSERT")
 	}
@@ -725,7 +733,8 @@ func (s *{{ .ScopeType }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Save() (e
 // Update updates existing record in DB
 func (s {{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Update() (err error) { return s.Scope().{{ if eq .ImitateGorm true }}Reform{{ end }}Update() }
 func (s *{{ .ScopeType }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Update() (err error) {
-	err = s.db.Update(s)
+	s.checkDb()
+	err = s.db.Update(&s.{{ .Type }})
 	if err == nil {
 		s.doLog("UPDATE")
 	}
@@ -735,7 +744,8 @@ func (s *{{ .ScopeType }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Update() 
 // Delete deletes existing record in DB
 func (s {{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Delete() (err error) { return s.Scope().{{ if eq .ImitateGorm true }}Reform{{ end }}Delete() }
 func (s *{{ .ScopeType }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Delete() (err error) {
-	err = s.db.Delete(s)
+	s.checkDb()
+	err = s.db.Delete(&s.{{ .Type }})
 	if err == nil {
 		s.doLog("DELETE")
 	}
