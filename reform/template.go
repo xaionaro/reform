@@ -221,10 +221,10 @@ func (s *{{ .LogType }}) Pointers() []interface{} {
 }
 
 // View returns View object for that struct.
-func (s *{{ .Type }}) View() reform.View {
+func (s {{ .Type }}) View() reform.View {
 	return {{ .TableVar }}
 }
-func (s *{{ .LogType }}) View() reform.View {
+func (s {{ .LogType }}) View() reform.View {
 	return {{ .LogTableVar }}
 }
 
