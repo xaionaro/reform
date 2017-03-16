@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/xaionaro/reform"
-	"github.com/xaionaro/internal"
+	"github.com/xaionaro/reform/internal"
 	"github.com/xaionaro/reform/parse"
 )
 
