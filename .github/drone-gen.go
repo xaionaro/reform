@@ -1,11 +1,14 @@
 package main
 
+// Tool to update .drone-local.yml file with Drone configurations.
+
 import (
 	"bytes"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"strings"
 )
 
 type Driver struct {
@@ -83,8 +86,8 @@ func main() {
 			[]Driver{
 				{
 					"sqlite3",
-					"/tmp/reform-test.sqlite3",
-					"/tmp/reform-test.sqlite3",
+					"/tmp/reform-database.sqlite3",
+					"/tmp/reform-database.sqlite3",
 				},
 			},
 		},
@@ -104,17 +107,14 @@ func main() {
 		},
 	}
 
-	const start = `# generated with 'go run .github/drone-gen.go'`
-
 	var buf bytes.Buffer
-	buf.WriteString(start + "\n")
-	buf.WriteString(fmt.Sprintf("# Go %s\n", goImages))
+	buf.WriteString(fmt.Sprintf("#   Go: %s\n", strings.Join(goImages, ", ")))
 	for _, db := range databases {
 		drivers := make([]string, 0, len(db.Drivers))
 		for _, d := range db.Drivers {
 			drivers = append(drivers, d.Name)
 		}
-		buf.WriteString(fmt.Sprintf("# %s %s %s\n", db.ImageName, db.ImageVersions, drivers))
+		buf.WriteString(fmt.Sprintf("#   %s: %s (drivers: %s)\n", db.ImageName, strings.Join(db.ImageVersions, ", "), strings.Join(drivers, ", ")))
 	}
 
 	buf.WriteString("matrix:\n")
@@ -139,6 +139,7 @@ func main() {
 
 	// update file
 	const filename = ".drone.yml"
+	const start = "# Generated with 'go run .github/drone-gen.go'."
 	b, err := ioutil.ReadFile(filename)
 	if err != nil {
 		log.Fatal(err)
@@ -147,9 +148,12 @@ func main() {
 	if i < 0 {
 		log.Fatalf("failed to find %q in %s", start, filename)
 	}
-	b = append(b[:i], buf.Bytes()...)
+	b = append(b[:i], start...)
+	b = append(b, []byte(fmt.Sprintf("\n# %d combinations:\n", count))...)
+	b = append(b, buf.Bytes()...)
 	if err = ioutil.WriteFile(filename, b, 0644); err != nil {
 		log.Fatal(err)
 	}
 	log.Printf("%s matrix updated with %d combinations.", filename, count)
+	log.Printf("Don't forget to sign it: drone sign go-reform/reform")
 }
