@@ -174,5 +174,37 @@ func (db DB) EscapeTableName(tableName string) string {
 	return db.Dialect.QuoteIdentifier(tableName)
 }
 
+func (db DB) ColumnDefinitionsOfStruct(structInfo StructInfo) (definitions []string) {
+	for _, field := range structInfo.Fields {
+		if field.Column == "" {
+			continue
+		}
+		definitions = append(definitions, db.Dialect.ColumnDefinitionForField(field))
+	}
+
+	return
+}
+
+func (db DB) CreateTableIfNotExists(structInfo StructInfo) (bool, error) {
+	// TODO: correctly escape table name
+	request := "CREATE TABLE IF NOT EXISTS `"+structInfo.SQLName+"` ("+
+			strings.Join(db.ColumnDefinitionsOfStruct(structInfo), ", ")+
+		")"
+
+	var postQueries []string
+	for _, field := range structInfo.Fields {
+		if field.Column == "" {
+			continue
+		}
+		postQueries = append(postQueries, db.Dialect.ColumnDefinitionPostQueryForField(structInfo, field))
+	}
+
+	res, err := db.Exec(request + ";" + strings.Join(postQueries, ";"))
+
+	rowsAffected, _ := res.RowsAffected()
+
+	return rowsAffected > 0, err
+}
+
 // check interface
 var _ DBTX = (*DB)(nil)

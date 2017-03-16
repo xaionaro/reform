@@ -1,13 +1,13 @@
 package main
 
 import (
-	"github.com/xaionaro/reform/parse"
+	"github.com/xaionaro/reform"
 	"text/template"
 )
 
 // StructData represents struct info for XXX_reform.go file generation.
 type StructData struct {
-	parse.StructInfo
+	reform.StructInfo
 	LogType             string
 	TableType           string
 	LogTableType        string
@@ -34,7 +34,6 @@ import (
 	"time"
 
 	"github.com/xaionaro/reform"
-	"github.com/xaionaro/reform/parse"
 )
 `))
 
@@ -72,7 +71,7 @@ type {{ .LogType }} struct {
 
 // Schema returns a schema name in SQL database ("{{ .SQLSchema }}").
 type {{ .TableType }} struct {
-	s parse.StructInfo
+	s reform.StructInfo
 	z []interface{}
 }
 
@@ -111,7 +110,18 @@ func (v *{{ .TableType }}) PKColumnIndex() uint {
 	return uint(v.s.PKFieldIndex)
 }
 
+func (v {{ .TableType }}) CreateTableIfNotExists(db *reform.DB) (bool, error) {
+	if db == nil {
+		db = defaultDB_{{ .Type }}
+	}
+	return db.CreateTableIfNotExists(v.s)
+}
+
 {{- end }}
+
+func (v {{ .TableType }}) StructInfo() reform.StructInfo {
+	return v.s
+}
 
 // {{ .TableVar }} represents {{ .SQLName }} view or table in SQL database.
 var {{ .TableVar }} = &{{ .TableType }} {
@@ -120,7 +130,7 @@ var {{ .TableVar }} = &{{ .TableType }} {
 }
 
 type {{ .LogTableType }} struct {
-	s parse.StructInfo
+	s reform.StructInfo
 	z []interface{}
 }
 
@@ -805,9 +815,9 @@ func (s {{ .Type }}) HasPK() bool {
 func (s *{{ .FilterType }}) SetPK(pk interface{}) { (*{{ .Type }})(s).SetPK(pk) }
 func (s *{{ .Type }}) SetPK(pk interface{}) {
 	if i64, ok := pk.(int64); ok {
-		s.{{ .PKField.Name }} = {{ .PKField.PKType }}(i64)
+		s.{{ .PKField.Name }} = {{ .PKField.Type }}(i64)
 	} else {
-		s.{{ .PKField.Name }} = pk.({{ .PKField.PKType }})
+		s.{{ .PKField.Name }} = pk.({{ .PKField.Type }})
 	}
 }
 

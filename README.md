@@ -18,6 +18,7 @@ Added functionality:
 * `object.Insert()` — saves new object properties
 * `object.Update()` — updates object properties using it's primary key
 * `object.Save()` — saves new object if primary key is zeroed or updates object properties using it's primary key if it's not zeroed
+* `ModelNameTable.CreateTableIfNotExists(db)` — create table for model `ModelName` in database `db` (of type `*reform.Db`) [works only for sqlite3, at the moment]
 
 Also:
 * you can add a magic comment `//reformOptions:imitateGorm` to act more like [gorm](https://github.com/jinzhu/gorm): automatically generate column names and use tag "gorm" instead of "reform".

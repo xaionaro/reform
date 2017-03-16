@@ -8,78 +8,14 @@ package parse
 import (
 	"fmt"
 	"github.com/jinzhu/gorm"
+	r "github.com/xaionaro/reform"
 	"reflect"
 	"strings"
 )
 
-// FieldInfo represents information about struct field.
-type FieldInfo struct {
-	Name       string // field name as defined in source file, e.g. Name
-	PKType     string // primary key field type as defined in source file, e.g. string
-	Column     string // SQL database column name from "reform:" struct field tag, e.g. name
-	FieldsPath []FieldInfo // A path to the field via nested structures
-}
-
-func (f FieldInfo) FullName() string {
-	var prefix string
-	for _, step := range f.FieldsPath {
-		prefix += step.Name + "."
-	}
-
-	return prefix + f.Name
-}
-
-// StructInfo represents information about struct.
-type StructInfo struct {
-	Type         string      // struct type as defined in source file, e.g. User
-	SQLSchema    string      // SQL database schema name from magic "reform:" comment, e.g. public
-	SQLName      string      // SQL database view or table name from magic "reform:" comment, e.g. users
-	Fields       []FieldInfo // fields info
-	PKFieldIndex int         // index of primary key field in Fields, -1 if none
-	ImitateGorm  bool        // act like GORM (https://github.com/jinzhu/gorm)
-}
-
-// Columns returns a new slice of column names.
-func (s *StructInfo) Columns() []string {
-	res := make([]string, len(s.Fields))
-	for i, f := range s.Fields {
-		res[i] = f.Column
-	}
-	return res
-}
-
-func (s *StructInfo) UnPointer() StructInfo {
-	return *s
-}
-
-func (s StructInfo) ToLog() *StructInfo {
-	s.SQLName += "_log"
-	s.Fields = append(s.Fields, []FieldInfo{
-		FieldInfo{Name: "LogAuthor", PKType: "*string", Column: "log_author"},
-		FieldInfo{Name: "LogAction", PKType: "string", Column: "log_action"},
-		FieldInfo{Name: "LogDate", PKType: "time.Time", Column: "log_date"},
-		FieldInfo{Name: "LogComment", PKType: "string", Column: "log_comment"},
-	}...)
-
-	return &s
-}
-
-// IsTable returns true if this object represent information for table, false for view.
-func (s *StructInfo) IsTable() bool {
-	return s.PKFieldIndex >= 0
-}
-
-// PKField returns a primary key field, panics for views.
-func (s *StructInfo) PKField() FieldInfo {
-	if !s.IsTable() {
-		panic("reform: not a table")
-	}
-	return s.Fields[s.PKFieldIndex]
-}
-
 // AssertUpToDate checks that given StructInfo matches given object.
 // It is used during program initialization to check that generated files are up-to-date.
-func AssertUpToDate(si *StructInfo, obj interface{}) {
+func AssertUpToDate(si *r.StructInfo, obj interface{}) {
 	msg := fmt.Sprintf(`reform:
 		%s struct information is not up-to-date.
 		Typically this means that %s type definition was changed, but 'reform' command / 'go generate' was not run.
@@ -94,7 +30,7 @@ func AssertUpToDate(si *StructInfo, obj interface{}) {
 	}
 }
 
-// parseStructFieldTag is used by both file and runtime parsers
+// parseStructFieldTag is used by both file and runtime parsers to parse "reform" tags
 func parseStructFieldTag(tag string) (sqlName string, isPK bool, embedded string) {
 	parts := strings.Split(tag, ",")
 	if len(parts) == 0 {
@@ -127,7 +63,7 @@ func toGormFieldName(fieldName string) (gormFieldName string) {
 	return gorm.ToDBName(fieldName)
 }
 
-// parseStructFieldGormTag is the same as parseStructFieldTag() but for case if option "imitateGorm" is enabled
+// parseStructFieldGormTag is the same as parseStructFieldTag() but to parse "gorm" tags (it's for case if option "imitateGorm" is enabled)
 func parseStructFieldGormTag(tag string, fieldName string) (sqlName string, isPK bool, embedded string, structFile string) {
 	defer func() {
 		if sqlName == "" {
@@ -169,8 +105,26 @@ func parseStructFieldGormTag(tag string, fieldName string) (sqlName string, isPK
 	return
 }
 
+// parseStructFieldSQLTag is used by both file and runtime parsers to parse "sql" tags
+func parseStructFieldSQLTag(tag string) (isUnique bool, hasIndex bool) {
+	parts := strings.Split(tag, ",")
+
+	for _, part := range parts {
+		switch part {
+		case "unique_index":
+			isUnique = true
+		case "index":
+			hasIndex = true
+		default:
+			// TODO: notify about the error
+		}
+	}
+
+	return
+}
+
 // checkFields is used by both file and runtime parsers
-func checkFields(res *StructInfo) error {
+func checkFields(res *r.StructInfo) error {
 	if len(res.Fields) == 0 {
 		return fmt.Errorf(`reform: %s has no reform-active fields (forgot to set tags "reform:"?), it is not allowed`, res.Type)
 	}
@@ -186,3 +140,4 @@ func checkFields(res *StructInfo) error {
 
 	return nil
 }
+

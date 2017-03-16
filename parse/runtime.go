@@ -2,6 +2,7 @@ package parse
 
 import (
 	"fmt"
+	r "github.com/xaionaro/reform"
 	"reflect"
 	"strings"
 )
@@ -23,11 +24,11 @@ func objectGoType(t reflect.Type, structT reflect.Type) string {
 }
 
 // Object extracts struct information from given object.
-func Object(obj interface{}, schema, table string, imitateGorm bool) (res *StructInfo, err error) {
-	return object(reflect.ValueOf(obj).Elem().Type(), schema, table, imitateGorm, []FieldInfo{})
+func Object(obj interface{}, schema, table string, imitateGorm bool) (res *r.StructInfo, err error) {
+	return object(reflect.ValueOf(obj).Elem().Type(), schema, table, imitateGorm, []r.FieldInfo{})
 }
 
-func object(t reflect.Type, schema, table string, imitateGorm bool, fieldsPath []FieldInfo) (res *StructInfo, err error) {
+func object(t reflect.Type, schema, table string, imitateGorm bool, fieldsPath []r.FieldInfo) (res *r.StructInfo, err error) {
 	// convert any panic to error
 	defer func() {
 		p := recover()
@@ -41,7 +42,7 @@ func object(t reflect.Type, schema, table string, imitateGorm bool, fieldsPath [
 		}
 	}()
 
-	res = &StructInfo{
+	res = &r.StructInfo{
 		Type:         t.Name(),
 		SQLSchema:    schema,
 		SQLName:      table,
@@ -109,10 +110,9 @@ func object(t reflect.Type, schema, table string, imitateGorm bool, fieldsPath [
 		if column == "" {
 			return nil, fmt.Errorf(`reform: %s has field %s with invalid "reform:"/"gorm:" tag value, it is not allowed`, res.Type, fieldName)
 		}
-		var pkType string
+		fType := objectGoType(f.Type, t)
 		if isPK {
-			pkType = objectGoType(f.Type, t)
-			if strings.HasPrefix(pkType, "*") {
+			if strings.HasPrefix(fType, "*") {
 				return nil, fmt.Errorf(`reform: %s has pointer field %s with a primary field tag, it is not allowed`, res.Type, fieldName)
 			}
 			if res.PKFieldIndex >= 0 {
@@ -120,9 +120,14 @@ func object(t reflect.Type, schema, table string, imitateGorm bool, fieldsPath [
 			}
 		}
 
-		fieldInfo := FieldInfo{
+		isUnique, hasIndex := parseStructFieldSQLTag(tag.Get("sql"))
+
+		fieldInfo := r.FieldInfo{
 			Name:       fieldName,
-			PKType:     pkType,
+			IsPK:       isPK,
+			IsUnique:   isUnique,
+			HasIndex:   hasIndex,
+			Type:       fType,
 			Column:     prefix+column,
 			FieldsPath: fieldsPath,
 		}

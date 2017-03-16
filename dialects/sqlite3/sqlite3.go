@@ -39,6 +39,57 @@ func (sqlite3) DefaultValuesMethod() reform.DefaultValuesMethod {
 	return reform.DefaultValues
 }
 
+func (sqlite3) ColumnTypeForField(field reform.FieldInfo) string {
+	switch field.Type {
+	case "time.Time", "extime.Time":
+		return "datetime"
+	case "int":
+		return "integer"
+	case "string":
+		return "text"
+	default:
+		return "text"
+	}
+}
+
+func (sqlite3) ColumnDefinitionForField(field reform.FieldInfo) string {
+	canBeNull := false
+	fieldType := field.Type
+	if fieldType[0:1] == "*" {
+		canBeNull = true
+		fieldType = fieldType[1:]
+	}
+
+	columnType := Dialect.ColumnTypeForField(field)
+
+	definition := field.Column + " " + columnType	// TODO: escape everything
+
+	if field.IsPK {
+		definition += " PRIMARY KEY"
+		if fieldType == "int" {
+			definition += " AUTOINCREMENT"
+		}
+	}
+
+	if field.IsUnique {
+		definition += " UNIQUE"
+	}
+
+	if !canBeNull {
+		definition += " NOT NULL"
+	}
+
+	return definition
+}
+
+func (sqlite3) ColumnDefinitionPostQueryForField(structInfo reform.StructInfo, field reform.FieldInfo) string {
+	if field.HasIndex {
+		return "CREATE INDEX IF NOT EXISTS idx_"+structInfo.SQLName+"_"+field.Column+" ON "+structInfo.SQLName+"("+field.Column+")"	// TODO: escape everything
+	}
+
+	return ""
+}
+
 // Dialect implements reform.Dialect for SQLite3.
 var Dialect sqlite3
 

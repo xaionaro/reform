@@ -37,6 +37,16 @@ func (mssql) DefaultValuesMethod() reform.DefaultValuesMethod {
 	return reform.DefaultValues
 }
 
+func (mssql) ColumnDefinitionForField(field reform.FieldInfo) string {
+	panic("Is not implemented, yet")
+	return ""
+}
+
+func (mssql) ColumnDefinitionPostQueryForField(structInfo reform.StructInfo, field reform.FieldInfo) string {
+	panic("Is not implemented, yet")
+	return ""
+}
+
 // Dialect implements reform.Dialect for Microsoft SQL Server.
 var Dialect mssql
 

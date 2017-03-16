@@ -39,6 +39,16 @@ func (mysql) DefaultValuesMethod() reform.DefaultValuesMethod {
 	return reform.EmptyLists
 }
 
+func (mysql) ColumnDefinitionForField(field reform.FieldInfo) string {
+	panic("Is not implemented, yet")
+	return ""
+}
+
+func (mysql) ColumnDefinitionPostQueryForField(structInfo reform.StructInfo, field reform.FieldInfo) string {
+	panic("Is not implemented, yet")
+	return ""
+}
+
 // Dialect implements reform.Dialect for MySQL.
 var Dialect mysql
 

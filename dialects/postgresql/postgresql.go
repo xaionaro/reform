@@ -41,6 +41,16 @@ func (postgresql) DefaultValuesMethod() reform.DefaultValuesMethod {
 	return reform.DefaultValues
 }
 
+func (postgresql) ColumnDefinitionForField(field reform.FieldInfo) string {
+	panic("Is not implemented, yet")
+	return ""
+}
+
+func (postgresql) ColumnDefinitionPostQueryForField(structInfo reform.StructInfo, field reform.FieldInfo) string {
+	panic("Is not implemented, yet")
+	return ""
+}
+
 // Dialect implements reform.Dialect for PostgreSQL.
 var Dialect postgresql
 

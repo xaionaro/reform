@@ -2,6 +2,7 @@ package parse
 
 import (
 	"fmt"
+	r "github.com/xaionaro/reform"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -13,14 +14,20 @@ import (
 var magicReformComment = regexp.MustCompile(`reform:([0-9A-Za-z_\.]+)`)
 var magicReformOptionsComment = regexp.MustCompile(`reformOptions:([0-9A-Za-z_\.,]+)`)
 
-func fileGoType(x ast.Expr) string {
+func fileGoType(x ast.Expr, printOnError ...interface{}) string {
 	switch t := x.(type) {
 	case *ast.StarExpr:
-		return "*" + fileGoType(t.X)
+		return "*" + fileGoType(t.X, printOnError...)
 	case *ast.Ident:
 		return t.String()
+	case *ast.SliceExpr:
+		return "[]" + fileGoType(t.X, printOnError...)
+	case *ast.ArrayType:
+		return fmt.Sprintf("[]%v", fileGoType(t.Elt, printOnError...))
+	case *ast.SelectorExpr:
+		return fmt.Sprintf("%s", t.X) + "." + t.Sel.String()
 	default:
-		panic(fmt.Sprintf("reform: fileGoType: unhandled '%s' (%#v). Please report this bug.", x, x))
+		panic(fmt.Sprintf("reform: fileGoType: unhandled '%s'/'%T' (%#v: %v, %v). Please report this bug. Additional info: %v", x, x, x, x.Pos(), x.End(), printOnError))
 	}
 }
 
@@ -35,7 +42,7 @@ func getFieldTag(f *ast.Field) reflect.StructTag {
 	return reflect.StructTag("")
 }
 
-func parseStructTypeSpec(ts *ast.TypeSpec, str *ast.StructType, imitateGorm bool, fieldsPath []FieldInfo, forceParse bool) (*StructInfo, error) {
+func parseStructTypeSpec(ts *ast.TypeSpec, str *ast.StructType, imitateGorm bool, fieldsPath []r.FieldInfo, forceParse bool) (*r.StructInfo, error) {
 	var prefix string
 	if len(fieldsPath) > 0 {
 		prefix = fieldsPath[len(fieldsPath)-1].Column + "__"
@@ -46,7 +53,7 @@ func parseStructTypeSpec(ts *ast.TypeSpec, str *ast.StructType, imitateGorm bool
 		typeName = ts.Name.Name
 	}
 
-	res := &StructInfo{
+	res := &r.StructInfo{
 		Type:         typeName,
 		PKFieldIndex: -1,
 	}
@@ -71,11 +78,14 @@ func parseStructTypeSpec(ts *ast.TypeSpec, str *ast.StructType, imitateGorm bool
 			}
 		}
 
+		// getting type
+		fType := fileGoType(f.Type, typeName, *f, fieldsPath)
+
 		// getting field name
 		var fieldName string
 		if len(f.Names) == 0 {
 			if imitateGorm {
-				fieldName = fileGoType(f.Type)
+				fieldName = fType
 			} else {
 				return nil, fmt.Errorf(`reform: %s has reform-active anonymous field "%s", it is not allowed`, res.Type, f.Type)
 			}
@@ -115,10 +125,8 @@ func parseStructTypeSpec(ts *ast.TypeSpec, str *ast.StructType, imitateGorm bool
 		if column == "" {
 			return nil, fmt.Errorf(`reform: %s has field %s (of type %s) with invalid "reform:"/"gorm:" tag value, it is not allowed`, res.Type, fieldName, f.Type)
 		}
-		var pkType string
 		if isPK {
-			pkType = fileGoType(f.Type)
-			if strings.HasPrefix(pkType, "*") {
+			if strings.HasPrefix(fType, "*") {
 				return nil, fmt.Errorf(`reform: %s has pointer field %s (of type %s) with a primary field tag, it is not allowed`, res.Type, fieldName, f.Type)
 			}
 			if res.PKFieldIndex >= 0 {
@@ -126,9 +134,14 @@ func parseStructTypeSpec(ts *ast.TypeSpec, str *ast.StructType, imitateGorm bool
 			}
 		}
 
-		fieldInfo := FieldInfo{
+		isUnique, hasIndex := parseStructFieldSQLTag(tag.Get("sql"))
+
+		fieldInfo := r.FieldInfo{
 			Name:       fieldName,
-			PKType:     pkType,
+			IsPK:       isPK,
+			IsUnique:   isUnique,
+			HasIndex:   hasIndex,
+			Type:       fType,
 			Column:     prefix+column,
 			FieldsPath: fieldsPath,
 		}
@@ -182,11 +195,11 @@ func parseStructTypeSpec(ts *ast.TypeSpec, str *ast.StructType, imitateGorm bool
 }
 
 // File parses given file and returns found structs information.
-func File(path string) ([]StructInfo, error) {
-	return file(path, nil, []FieldInfo{}, false)
+func File(path string) ([]r.StructInfo, error) {
+	return file(path, nil, []r.FieldInfo{}, false)
 }
 
-func file(path string, forceImitateGorm *bool, fieldsPath []FieldInfo, forceParse bool) ([]StructInfo, error) {
+func file(path string, forceImitateGorm *bool, fieldsPath []r.FieldInfo, forceParse bool) ([]r.StructInfo, error) {
 	// parse file
 	fset := token.NewFileSet()
 	fileNode, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
@@ -195,7 +208,7 @@ func file(path string, forceImitateGorm *bool, fieldsPath []FieldInfo, forcePars
 	}
 
 	// consider only top-level struct type declarations with magic comment
-	var res []StructInfo
+	var res []r.StructInfo
 	for _, decl := range fileNode.Decls {
 		// ast.Print(fset, decl)
 

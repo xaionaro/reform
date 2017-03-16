@@ -18,6 +18,74 @@ var (
 	ErrNoPK = errors.New("reform: no primary key")
 )
 
+// FieldInfo represents information about struct field.
+type FieldInfo struct {
+	Name       string // field name as defined in source file, e.g. Name
+	IsPK       bool   // is this field a primary key field
+	IsUnique   bool   // this field uses unique index in RDBMS
+	HasIndex   bool   // this field uses index in RDBMS
+	Type       string // field type as defined in source file, e.g. string
+	Column     string // SQL database column name from "reform:" struct field tag, e.g. name
+	FieldsPath []FieldInfo // A path to the field via nested structures
+}
+
+func (f FieldInfo) FullName() string {
+	var prefix string
+	for _, step := range f.FieldsPath {
+		prefix += step.Name + "."
+	}
+
+	return prefix + f.Name
+}
+
+// StructInfo represents information about struct.
+type StructInfo struct {
+	Type         string      // struct type as defined in source file, e.g. User
+	SQLSchema    string      // SQL database schema name from magic "reform:" comment, e.g. public
+	SQLName      string      // SQL database view or table name from magic "reform:" comment, e.g. users
+	Fields       []FieldInfo // fields info
+	PKFieldIndex int         // index of primary key field in Fields, -1 if none
+	ImitateGorm  bool        // act like GORM (https://github.com/jinzhu/gorm)
+}
+
+// Columns returns a new slice of column names.
+func (s *StructInfo) Columns() []string {
+	res := make([]string, len(s.Fields))
+	for i, f := range s.Fields {
+		res[i] = f.Column
+	}
+	return res
+}
+
+func (s *StructInfo) UnPointer() StructInfo {
+	return *s
+}
+
+func (s StructInfo) ToLog() *StructInfo {
+	s.SQLName += "_log"
+	s.Fields = append(s.Fields, []FieldInfo{
+		FieldInfo{Name: "LogAuthor",  Type: "*string", Column: "log_author"},
+		FieldInfo{Name: "LogAction",  Type: "string", Column: "log_action"},
+		FieldInfo{Name: "LogDate",    Type: "time.Time", Column: "log_date"},
+		FieldInfo{Name: "LogComment", Type: "string", Column: "log_comment"},
+	}...)
+
+	return &s
+}
+
+// IsTable returns true if this object represent information for table, false for view.
+func (s *StructInfo) IsTable() bool {
+	return s.PKFieldIndex >= 0
+}
+
+// PKField returns a primary key field, panics for views.
+func (s *StructInfo) PKField() FieldInfo {
+	if !s.IsTable() {
+		panic("reform: not a table")
+	}
+	return s.Fields[s.PKFieldIndex]
+}
+
 // View represents SQL database view or table.
 type View interface {
 	// Schema returns a schema name in SQL database.
@@ -161,6 +229,12 @@ type Dialect interface {
 
 	// DefaultValuesMethod returns a method of inserting of row with all default values.
 	DefaultValuesMethod() DefaultValuesMethod
+
+	// ColumnDefinitionForField returns a string of column definition for a field
+	ColumnDefinitionForField(FieldInfo) string
+
+	// ColumnDefinitionForField returns a string of queries that should be executes after creating the field (like "CREATE INDEX" in sqlite)
+	ColumnDefinitionPostQueryForField(StructInfo, FieldInfo) string
 }
 
 // Stringer represents any object with method "String() string" to stringify it's value
