@@ -199,11 +199,8 @@ func (db DB) CreateTableIfNotExists(structInfo StructInfo) (bool, error) {
 		postQueries = append(postQueries, db.Dialect.ColumnDefinitionPostQueryForField(structInfo, field))
 	}
 
-	res, err := db.Exec(request + ";" + strings.Join(postQueries, ";"))
-
-	rowsAffected, _ := res.RowsAffected()
-
-	return rowsAffected > 0, err
+	_, err := db.Exec(request + ";" + strings.Join(postQueries, ";"))
+	return false, err
 }
 
 // check interface
