@@ -135,7 +135,17 @@ func object(t reflect.Type, schema, table string, imitateGorm bool, fieldsPath [
 		if embedded == "" {
 			res.Fields = append(res.Fields, fieldInfo)
 		} else {
-			structInfo, err := object(f.Type, "", "", imitateGorm, append(fieldsPath, fieldInfo))
+			var nestedFieldsPath []r.FieldInfo
+			switch embedded {
+			case "embedded":
+				nestedFieldsPath = fieldsPath
+			case "prefixed":
+				nestedFieldsPath = append(fieldsPath, fieldInfo)
+			default:
+				return nil, fmt.Errorf(`reform: unknown "embedded" value: %v`, embedded)
+			}
+
+			structInfo, err := object(f.Type, "", "", imitateGorm, nestedFieldsPath)
 			if err != nil {
 				return nil, fmt.Errorf(`reform: %s has field %s of type %s. Got error while getting structure information of the object: %s`, res.Type, fieldName, f.Type, structFile, err.Error())
 			}

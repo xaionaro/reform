@@ -155,10 +155,20 @@ func parseStructTypeSpec(ts *ast.TypeSpec, str *ast.StructType, imitateGorm bool
 
 			ident := f.Type.(*ast.Ident)
 
-			structInfos, err := file(structFile, &imitateGorm, append(fieldsPath, fieldInfo), true)
+			var nestedFieldsPath []r.FieldInfo
+			switch embedded {
+			case "embedded":
+				nestedFieldsPath = fieldsPath
+			case "prefixed":
+				nestedFieldsPath = append(fieldsPath, fieldInfo)
+			default:
+				return nil, fmt.Errorf(`reform: unknown "embedded" value: %v`, embedded)
+			}
+			structInfos, err := file(structFile, &imitateGorm, nestedFieldsPath, true)
 			if err != nil {
 				return nil, fmt.Errorf(`reform: %s has field %s of type %s that uses file %s. Got error while parsing the file: %s`, res.Type, fieldName, f.Type, structFile, err.Error())
 			}
+
 			found := false
 			for _, structInfo := range structInfos {
 				if structInfo.Type == ident.String() {
