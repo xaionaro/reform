@@ -203,5 +203,84 @@ func (db DB) CreateTableIfNotExists(structInfo StructInfo) (bool, error) {
 	return false, err
 }
 
+func (db DB) GetWhereTailForFilter(filter interface{}, columnNameByFieldName func(string)string, prefix string, imitateGorm bool) (tail string, whereTailArgs []interface{}, err error) {
+	var whereTailStringParts []string
+
+	v  := reflect.ValueOf(filter)
+	vT := v.Type()
+
+	numField := v.NumField()
+
+	placeholderCounter := 0
+	for i := 0; i < numField; i++ {
+		vTF := vT.Field(i)
+		tag := vTF.Tag
+		if tag.Get("sql") == "-" || tag.Get("reform") == "-" {
+			continue
+		}
+
+		f  := v.Field(i)
+		fT := f.Type()
+
+		var columnName string
+		if imitateGorm {
+			columnName = prefix + columnNameByFieldName(vTF.Name)
+		} else {
+			vs := vT.Field(i)
+			columnName = prefix + strings.Split(vs.Tag.Get("reform"), ",")[0]
+		}
+
+		switch (fT.Kind()) {
+			case reflect.Struct:
+				var embedded string
+				if imitateGorm {
+					_, _, embedded, _ = ParseStructFieldGormTag(tag.Get("gorm"), "")
+				} else {
+					_, _, embedded = ParseStructFieldTag(tag.Get("reform"))
+				}
+
+				switch embedded {
+				case "embedded", "prefixed":
+					nestedPrefix := prefix
+					if embedded == "prefixed" {
+						nestedPrefix += columnName+"__"
+					}
+					tailPart, args, er := db.GetWhereTailForFilter(f.Interface(), columnNameByFieldName, nestedPrefix, imitateGorm)
+					if er != nil {
+						err = er
+						return
+					}
+					if len(tailPart) > 0 {
+						whereTailStringParts = append(whereTailStringParts, tailPart)
+						whereTailArgs        = append(whereTailArgs, args...)
+					}
+					continue
+				case "":
+					if f.Interface() == reflect.Zero(fT).Interface() {
+						continue
+					}
+				default:
+					panic(fmt.Errorf("Not implemented case: embedded == \"%v\": %v (%T)", embedded, vTF.Name, f.Interface()))
+				}
+			case reflect.Array, reflect.Slice, reflect.Map:
+				if reflect.DeepEqual(f.Interface(), reflect.Zero(fT).Interface()) {
+					continue
+				}
+			default:
+				if f.Interface() == reflect.Zero(fT).Interface() {
+					continue
+				}
+		}
+
+		placeholderCounter++
+		whereTailStringParts = append(whereTailStringParts, db.EscapeTableName(columnName)+" = "+db.Dialect.Placeholder(placeholderCounter))
+		whereTailArgs        = append(whereTailArgs, f.Interface())
+	}
+
+	tail = strings.Join(whereTailStringParts, " AND ")
+
+	return
+}
+
 // check interface
 var _ DBTX = (*DB)(nil)

@@ -7,7 +7,6 @@ package parse
 
 import (
 	"fmt"
-	"github.com/jinzhu/gorm"
 	r "github.com/xaionaro/reform"
 	"reflect"
 	"strings"
@@ -28,81 +27,6 @@ func AssertUpToDate(si *r.StructInfo, obj interface{}) {
 	if !reflect.DeepEqual(si, si2) {
 		panic(msg)
 	}
-}
-
-// parseStructFieldTag is used by both file and runtime parsers to parse "reform" tags
-func parseStructFieldTag(tag string) (sqlName string, isPK bool, embedded string) {
-	parts := strings.Split(tag, ",")
-	if len(parts) == 0 {
-		return
-	}
-
-	sqlName = parts[0]
-
-	if len(parts) > 1 {
-		parts = parts[1:]
-		for _, part := range parts {
-			subParts := strings.Split(part, ":")
-			switch subParts[0] {
-			case "pk":
-				isPK = true
-			case "embedded":
-				embedded = subParts[1]
-			default:
-				// TODO: notify about the error
-				return
-			}
-		}
-	}
-
-	return
-}
-
-// convert structure field name to table field name using GORM rules
-func toGormFieldName(fieldName string) (gormFieldName string) {
-	return gorm.ToDBName(fieldName)
-}
-
-// parseStructFieldGormTag is the same as parseStructFieldTag() but to parse "gorm" tags (it's for case if option "imitateGorm" is enabled)
-func parseStructFieldGormTag(tag string, fieldName string) (sqlName string, isPK bool, embedded string, structFile string) {
-	defer func() {
-		if sqlName == "" {
-			sqlName = toGormFieldName(fieldName)
-		}
-	}()
-
-	parts := strings.Split(tag, ";")
-	if len(parts) <= 1 {
-		isPK = fieldName == "Id"
-	}
-
-	if len(parts) < 1 {
-		return
-	}
-
-	/*sqlName = parts[0]
-
-	if len(parts) < 2 {
-		return
-	}*/
-
-	for _, part := range parts/*[1:]*/ {
-		subParts := strings.Split(part, ":")
-		switch subParts[0] {
-		case "primary_key":
-			isPK = true
-		case "column":
-			sqlName = subParts[1]
-		case "embedded":
-			embedded = subParts[1]
-		case "file":
-			structFile = subParts[1]
-		default:
-			// TODO: Notify about the error
-		}
-	}
-
-	return
 }
 
 // parseStructFieldSQLTag is used by both file and runtime parsers to parse "sql" tags

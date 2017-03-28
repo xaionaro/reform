@@ -313,52 +313,7 @@ func (s *{{ .ScopeType }}) getOrderTail() (tail string, args []interface{}, err 
 // Compiles SQL tail for defined filter
 // TODO: should be compiled via dialects
 func (s *{{ .ScopeType }}) getWhereTailForFilter(filter {{ .FilterType }}) (tail string, whereTailArgs []interface{}, err error) {
-	var whereTailStringParts []string
-
-	sample := {{ .Type }}(filter)
-
-	v  := reflect.ValueOf(sample)
-	vT := v.Type()
-
-	numField := v.NumField()
-
-	placeholderCounter := 0
-	for i := 0; i < numField; i++ {
-		vTF := vT.Field(i)
-		tag := vTF.Tag
-		if tag.Get("sql") == "-" || tag.Get("reform") == "-" {
-			continue
-		}
-
-		f  := v.Field(i)
-		fT := f.Type()
-
-		switch (fT.Kind()) {
-			case reflect.Array, reflect.Slice, reflect.Map:
-				if reflect.DeepEqual(f.Interface(), reflect.Zero(fT).Interface()) {
-					continue
-				}
-			default:
-				if f.Interface() == reflect.Zero(fT).Interface() {
-					continue
-				}
-		}
-
-{{- if eq .ImitateGorm true }}
-		fieldName := s.columnNameByFieldName(vTF.Name)
-{{- else }}
-		vs := vT.Field(i)
-		fieldName := strings.Split(vs.Tag.Get("reform"), ",")[0]
-{{- end }}
-
-		placeholderCounter++
-		whereTailStringParts = append(whereTailStringParts, s.db.EscapeTableName(fieldName)+" = "+s.db.Dialect.Placeholder(placeholderCounter))
-		whereTailArgs        = append(whereTailArgs, f.Interface())
-	}
-
-	tail = strings.Join(whereTailStringParts, " AND ")
-
-	return
+	return s.db.GetWhereTailForFilter({{ .Type }}(filter), {{ if .ImitateGorm }}s.columnNameByFieldName{{else}}nil{{end}}, "", {{ .ImitateGorm }})
 }
 
 // parseQuerierArgs considers different ways of defning the tail (using scope properties or/and in_args)

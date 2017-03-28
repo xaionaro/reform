@@ -99,9 +99,9 @@ func object(t reflect.Type, schema, table string, imitateGorm bool, fieldsPath [
 		var embedded string
 		var structFile string
 		if imitateGorm {
-			column, isPK, embedded, structFile = parseStructFieldGormTag(tagString, fieldName)
+			column, isPK, embedded, structFile = r.ParseStructFieldGormTag(tagString, fieldName)
 		} else {
-			column, isPK, embedded = parseStructFieldTag(tagString)
+			column, isPK, embedded = r.ParseStructFieldTag(tagString)
 			structFile = embedded
 		}
 		if isPK && (embedded != "") {
