@@ -39,13 +39,56 @@ func (mysql) DefaultValuesMethod() reform.DefaultValuesMethod {
 	return reform.EmptyLists
 }
 
+func (mysql) ColumnTypeForField(field reform.FieldInfo) string {
+	switch field.Type {
+	case "time.Time", "extime.Time":
+		return "timestamp"
+	case "int":
+		return "integer"
+	case "int64":
+		return "bigint"
+	case "string":
+		return "text"
+	default:
+		return "text"
+	}
+}
+
 func (mysql) ColumnDefinitionForField(field reform.FieldInfo) string {
-	panic("Is not implemented, yet")
-	return ""
+	canBeNull := false
+	fieldType := field.Type
+	if fieldType[0:1] == "*" {
+		canBeNull = true
+		fieldType = fieldType[1:]
+	}
+
+	columnType := Dialect.ColumnTypeForField(field)
+
+	definition := field.Column + " " + columnType	// TODO: escape everything
+
+	if field.IsPK {
+		definition += " PRIMARY KEY"
+		if fieldType == "int" {
+			definition += " AUTO_INCREMENT"
+		}
+	}
+
+	if field.IsUnique {
+		panic("Is not implemented, yet")
+	}
+
+	if !canBeNull {
+		definition += " NOT NULL"
+	}
+
+	return definition
 }
 
 func (mysql) ColumnDefinitionPostQueryForField(structInfo reform.StructInfo, field reform.FieldInfo) string {
-	panic("Is not implemented, yet")
+	if field.HasIndex {
+		panic("Is not implemented, yet")
+	}
+
 	return ""
 }
 
