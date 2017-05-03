@@ -1,4 +1,4 @@
-// Package mssql implements reform.Dialect for Microsoft SQL Server.
+// Package mssql implements reform.Dialect for Microsoft SQL Server (mssql driver).
 package mssql
 
 import "github.com/xaionaro/reform"

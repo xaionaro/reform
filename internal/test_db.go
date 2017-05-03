@@ -7,10 +7,12 @@ import (
 	"time"
 
 	"gopkg.in/reform.v1"
+	"gopkg.in/reform.v1/dialects"
 	"gopkg.in/reform.v1/dialects/mssql"
 	"gopkg.in/reform.v1/dialects/mysql"
 	"gopkg.in/reform.v1/dialects/postgresql"
 	"gopkg.in/reform.v1/dialects/sqlite3"
+	"gopkg.in/reform.v1/dialects/sqlserver"
 )
 
 // ConnectToTestDB returns open and prepared connection to test DB.
@@ -43,7 +45,7 @@ func ConnectToTestDB() *reform.DB {
 	log.Printf("time.Now().UTC() = %s", now.UTC())
 
 	// select dialect for driver
-	dialect := DialectForDriver(driver)
+	dialect := dialects.ForDriver(driver)
 	switch dialect {
 	case postgresql.Dialect:
 		var version, tz string
@@ -79,7 +81,7 @@ func ConnectToTestDB() *reform.DB {
 			log.Fatal(err)
 		}
 
-	case mssql.Dialect:
+	case mssql.Dialect, sqlserver.Dialect:
 		var version string
 		var options uint16
 		if err = db.QueryRow("SELECT @@VERSION, @@OPTIONS").Scan(&version, &options); err != nil {
@@ -97,20 +99,4 @@ func ConnectToTestDB() *reform.DB {
 	}
 
 	return reform.NewDB(db, dialect, nil)
-}
-
-// DialectForDriver returns reform Dialect for given driver string.
-func DialectForDriver(driver string) reform.Dialect {
-	switch driver {
-	case "postgres":
-		return postgresql.Dialect
-	case "mysql":
-		return mysql.Dialect
-	case "sqlite3":
-		return sqlite3.Dialect
-	case "mssql":
-		return mssql.Dialect
-	default:
-		return nil
-	}
 }

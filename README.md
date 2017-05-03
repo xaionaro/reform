@@ -23,6 +23,7 @@ Added functionality:
 Also:
 * you can add a magic comment `//reformOptions:imitateGorm` to act more like [gorm](https://github.com/jinzhu/gorm): automatically generate column names and use tag "gorm" instead of "reform".
 * you can use nested (embedded) structures, like:
+
 ```go
 //go:generate reform
 

@@ -12,6 +12,44 @@ import (
 	"strings"
 )
 
+// FieldInfo represents information about struct field.
+type FieldInfo struct {
+	Name   string // field name as defined in source file, e.g. Name
+	Type   string // field type as defined in source file, e.g. string; always present for primary key, may be absent otherwise
+	Column string // SQL database column name from "reform:" struct field tag, e.g. name
+}
+
+// StructInfo represents information about struct.
+type StructInfo struct {
+	Type         string      // struct type as defined in source file, e.g. User
+	SQLSchema    string      // SQL database schema name from magic "reform:" comment, e.g. public
+	SQLName      string      // SQL database view or table name from magic "reform:" comment, e.g. users
+	Fields       []FieldInfo // fields info
+	PKFieldIndex int         // index of primary key field in Fields, -1 if none
+}
+
+// Columns returns a new slice of column names.
+func (s *StructInfo) Columns() []string {
+	res := make([]string, len(s.Fields))
+	for i, f := range s.Fields {
+		res[i] = f.Column
+	}
+	return res
+}
+
+// IsTable returns true if this object represent information for table, false for view.
+func (s *StructInfo) IsTable() bool {
+	return s.PKFieldIndex >= 0
+}
+
+// PKField returns a primary key field, panics for views.
+func (s *StructInfo) PKField() FieldInfo {
+	if !s.IsTable() {
+		panic("reform: not a table")
+	}
+	return s.Fields[s.PKFieldIndex]
+}
+
 // AssertUpToDate checks that given StructInfo matches given object.
 // It is used during program initialization to check that generated files are up-to-date.
 func AssertUpToDate(si *r.StructInfo, obj interface{}) {

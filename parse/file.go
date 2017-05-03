@@ -16,16 +16,24 @@ var magicReformOptionsComment = regexp.MustCompile(`reformOptions:([0-9A-Za-z_\.
 
 func fileGoType(x ast.Expr, printOnError ...interface{}) string {
 	switch t := x.(type) {
-	case *ast.StarExpr:
-		return "*" + fileGoType(t.X, printOnError...)
-	case *ast.Ident:
-		return t.String()
 	case *ast.SliceExpr:
 		return "[]" + fileGoType(t.X, printOnError...)
-	case *ast.ArrayType:
-		return fmt.Sprintf("[]%v", fileGoType(t.Elt, printOnError...))
+	case *ast.StarExpr:
+		return "*" + fileGoType(t.X, printOnError...)
 	case *ast.SelectorExpr:
-		return fmt.Sprintf("%s", t.X) + "." + t.Sel.String()
+		return fileGoType(t.X, printOnError...) + "." + t.Sel.String()
+	case *ast.Ident:
+		s := t.String()
+		if s == "byte" {
+			return "uint8"
+		}
+		return s
+	case *ast.ArrayType:
+		return "[" + fileGoType(t.Len, printOnError...) + "]" + fileGoType(t.Elt, printOnError...)
+	case *ast.BasicLit:
+		return t.Value
+	case nil:
+		return ""
 	default:
 		panic(fmt.Sprintf("reform: fileGoType: unhandled '%s'/'%T' (%#v: %v, %v). Please report this bug. Additional info: %v", x, x, x, x.Pos(), x.End(), printOnError))
 	}
@@ -125,9 +133,13 @@ func parseStructTypeSpec(ts *ast.TypeSpec, str *ast.StructType, imitateGorm bool
 		if column == "" {
 			return nil, fmt.Errorf(`reform: %s has field %s (of type %s) with invalid "reform:"/"gorm:" tag value, it is not allowed`, res.Type, fieldName, f.Type)
 		}
+
 		if isPK {
 			if strings.HasPrefix(fType, "*") {
 				return nil, fmt.Errorf(`reform: %s has pointer field %s (of type %s) with a primary field tag, it is not allowed`, res.Type, fieldName, f.Type)
+			}
+			if strings.HasPrefix(fType, "[") {
+				return nil, fmt.Errorf(`reform: %s has slice field %s with with "pk" label in "reform:" tag, it is not allowed`, res.Type, name.Name)
 			}
 			if res.PKFieldIndex >= 0 {
 				return nil, fmt.Errorf(`reform: %s has field %s (of type %s) with primary field tag (first used by %s), it is not allowed`, res.Type, fieldName, f.Type, res.Fields[res.PKFieldIndex].Name)
