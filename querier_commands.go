@@ -96,7 +96,7 @@ func (q *Querier) insert(str Struct, columns []string, values []interface{}) err
 			}
 			record.SetPK(id)
 		}
-		return nil
+		return err
 
 	case Returning, OutputInserted:
 		var err error
@@ -287,7 +287,7 @@ func (q *Querier) update(record Record, columns []string, values []interface{}) 
 	if ra > 1 {
 		panic(fmt.Sprintf("reform: %d rows by UPDATE by primary key. Please report this bug.", ra))
 	}
-	return nil
+	return err
 }
 
 func (q *Querier) beforeUpdate(record Record) error {
