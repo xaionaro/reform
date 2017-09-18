@@ -1,10 +1,10 @@
 // Package sqlserver implements reform.Dialect for Microsoft SQL Server (sqlserver driver).
-package sqlserver // import "gopkg.in/reform.v1/dialects/sqlserver"
+package sqlserver
 
 import (
 	"strconv"
 
-	"gopkg.in/reform.v1"
+	"github.com/xaionaro/reform"
 )
 
 type sqlserver struct{}
@@ -39,6 +39,16 @@ func (sqlserver) SelectLimitMethod() reform.SelectLimitMethod {
 
 func (sqlserver) DefaultValuesMethod() reform.DefaultValuesMethod {
 	return reform.DefaultValues
+}
+
+func (sqlserver) ColumnDefinitionForField(field reform.FieldInfo) string {
+	panic("Is not implemented, yet")
+	return ""
+}
+
+func (sqlserver) ColumnDefinitionPostQueryForField(structInfo reform.StructInfo, field reform.FieldInfo) string {
+	panic("Is not implemented, yet")
+	return ""
 }
 
 // Dialect implements reform.Dialect for Microsoft SQL Server.

@@ -15,13 +15,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"gopkg.in/reform.v1"
-	"gopkg.in/reform.v1/dialects/mssql"
-	"gopkg.in/reform.v1/dialects/postgresql"
-	"gopkg.in/reform.v1/dialects/sqlite3"
-	"gopkg.in/reform.v1/dialects/sqlserver"
-	"gopkg.in/reform.v1/internal"
-	. "gopkg.in/reform.v1/internal/test/models"
+	"github.com/xaionaro/reform"
+	"github.com/xaionaro/reform/dialects/mssql"
+	"github.com/xaionaro/reform/dialects/postgresql"
+	"github.com/xaionaro/reform/dialects/sqlite3"
+	"github.com/xaionaro/reform/dialects/sqlserver"
+	"github.com/xaionaro/reform/internal"
+	. "github.com/xaionaro/reform/internal/test/models"
 )
 
 var (

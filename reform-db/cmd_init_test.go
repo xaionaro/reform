@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"gopkg.in/reform.v1/dialects/sqlite3"
-	"gopkg.in/reform.v1/parse"
+	"github.com/xaionaro/reform/dialects/sqlite3"
+	"github.com/xaionaro/reform/parse"
 )
 
 func (s *ReformDBSuite) TestInit() {

@@ -115,7 +115,7 @@ func object(t reflect.Type, schema, table string, imitateGorm bool, fieldsPath [
 			if strings.HasPrefix(fType, "*") {
 				return nil, fmt.Errorf(`reform: %s has pointer field %s with "pk" label in "reform:" tag, it is not allowed`, res.Type, fieldName)
 			}
-			if strings.HasPrefix(typ, "[") {
+			if strings.HasPrefix(fType, "[") {
 				return nil, fmt.Errorf(`reform: %s has slice field %s with with "pk" label in "reform:" tag, it is not allowed`, res.Type, f.Name)
 			}
 			if res.PKFieldIndex >= 0 {
