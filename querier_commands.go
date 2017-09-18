@@ -96,7 +96,7 @@ func (q *Querier) insert(str Struct, columns []string, values []interface{}) err
 			}
 			record.SetPK(id)
 		}
-		return nil
+		return err
 
 	case Returning, OutputInserted:
 		var err error
@@ -151,7 +151,7 @@ func (q *Querier) Insert(str Struct) error {
 		return q.afterInsert(str)
 	}
 
-	return nil
+	return err
 }
 
 // InsertColumns inserts a struct into SQL database table with specified columns.
@@ -176,7 +176,7 @@ func (q *Querier) InsertColumns(str Struct, columns ...string) error {
 		return q.afterInsert(str)
 	}
 
-	return nil
+	return err
 }
 
 // InsertMulti inserts several structs into SQL database table with single query.
@@ -287,7 +287,7 @@ func (q *Querier) update(record Record, columns []string, values []interface{}) 
 	if ra > 1 {
 		panic(fmt.Sprintf("reform: %d rows by UPDATE by primary key. Please report this bug.", ra))
 	}
-	return nil
+	return err
 }
 
 func (q *Querier) beforeUpdate(record Record) error {
@@ -327,7 +327,7 @@ func (q *Querier) Update(record Record) error {
 	if err == nil {
 		return q.afterUpdate(record)
 	}
-	return nil
+	return err
 }
 
 // UpdateColumns updates specified columns of row specified by primary key in SQL database table with given record.
@@ -357,7 +357,7 @@ func (q *Querier) UpdateColumns(record Record, columns ...string) error {
 	if err == nil {
 		return q.afterUpdate(record)
 	}
-	return nil
+	return err
 }
 
 // Save saves record in SQL database table.
