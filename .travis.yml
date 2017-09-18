@@ -17,6 +17,8 @@ go:
   - 1.8.x
   - tip
 
+go_import_path: gopkg.in/reform.v1
+
 before_install:
   - if [[ $TARGET == *mysql* ]] ; then mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root mysql; fi
 
