@@ -2,6 +2,7 @@ package reform
 
 import (
 	"database/sql"
+	mysqlDriver "github.com/go-sql-driver/mysql"
 	"fmt"
 	"reflect"
 	"time"
@@ -121,10 +122,16 @@ func (q *Querier) Exec(query string, args ...interface{}) (sql.Result, error) {
 
 // Query executes a query that returns rows, typically a SELECT.
 // The args are for any placeholder parameters in the query.
-func (q *Querier) Query(query string, args ...interface{}) (*sql.Rows, error) {
+func (q *Querier) Query(query string, args ...interface{}) (rows *sql.Rows, err error) {
 	q.logBefore(query, args)
 	start := time.Now()
-	rows, err := q.dbtx.Query(query, args...)
+	for {
+		rows, err = q.dbtx.Query(query, args...)
+		if err == mysqlDriver.ErrInvalidConn {
+			continue
+		}
+		break
+	}
 	q.logAfter(query, args, time.Since(start), err)
 	return rows, err
 }
