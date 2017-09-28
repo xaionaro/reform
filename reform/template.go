@@ -330,7 +330,7 @@ func (s {{ .ScopeType }}) parseWhereTailComponent(in_args []interface{}, placeho
 			tailWords := s.db.SplitConditionByPlaceholders(arg)
 
 			if len(tailWords)-1 != len(in_args[1:]) {
-				// TODO: report about the error
+				panic(fmt.Errorf("The pattern doesn't fit for passed arguments (wrong number of question marks?): len(tailWords)-1 != len(in_args[1:]): <%v> <%v>", arg, in_args[1:]))
 			}
 
 			for idx, rawNewArgs := range in_args[1:] {
