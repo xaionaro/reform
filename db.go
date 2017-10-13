@@ -84,13 +84,13 @@ func (db *DB) InTransaction(f func(t *TX) error) error {
 func (db DB) OperatorAndPlaceholderOfValueForSQL(valueI interface{}, placeholderCounter int) string {
 	switch valueI.(type) {
 	case []int, []string, []float32, []float64, []int64:
-		return " IN ("+db.Dialect.Placeholder(placeholderCounter)+")"
+		return " IN (" + db.Dialect.Placeholder(placeholderCounter) + ")"
 	case int, string, float32, float64, int64:
-		return " = "+db.Dialect.Placeholder(placeholderCounter)
+		return " = " + db.Dialect.Placeholder(placeholderCounter)
 	case nil:
 		return " IS NULL"
 	default:
-		return " = "+db.Dialect.Placeholder(placeholderCounter)
+		return " = " + db.Dialect.Placeholder(placeholderCounter)
 	}
 }
 
@@ -123,7 +123,7 @@ func (a float64SliceWrapper) Value() (driver.Value, error) {
 func sliceWrapper(sliceI interface{}) (result []interface{}) {
 	slice := reflect.ValueOf(sliceI)
 	length := slice.Len()
-	for i:=0; i<length; i++ {
+	for i := 0; i < length; i++ {
 		item := slice.Index(i)
 		result = append(result, item.Interface())
 	}
@@ -187,8 +187,8 @@ func (db DB) ColumnDefinitionsOfStruct(structInfo StructInfo) (definitions []str
 
 func (db DB) CreateTableIfNotExists(structInfo StructInfo) (bool, error) {
 	// TODO: correctly escape table name
-	request := "CREATE TABLE IF NOT EXISTS `"+structInfo.SQLName+"` ("+
-			strings.Join(db.ColumnDefinitionsOfStruct(structInfo), ", ")+
+	request := "CREATE TABLE IF NOT EXISTS `" + structInfo.SQLName + "` (" +
+		strings.Join(db.ColumnDefinitionsOfStruct(structInfo), ", ") +
 		")"
 
 	var postQueries []string
@@ -203,10 +203,10 @@ func (db DB) CreateTableIfNotExists(structInfo StructInfo) (bool, error) {
 	return false, err
 }
 
-func (db DB) GetWhereTailForFilter(filter interface{}, columnNameByFieldName func(string)string, prefix string, imitateGorm bool) (tail string, whereTailArgs []interface{}, err error) {
+func (db DB) GetWhereTailForFilter(filter interface{}, columnNameByFieldName func(string) string, prefix string, imitateGorm bool) (tail string, whereTailArgs []interface{}, err error) {
 	var whereTailStringParts []string
 
-	v  := reflect.ValueOf(filter)
+	v := reflect.ValueOf(filter)
 	vT := v.Type()
 
 	numField := v.NumField()
@@ -219,7 +219,7 @@ func (db DB) GetWhereTailForFilter(filter interface{}, columnNameByFieldName fun
 			continue
 		}
 
-		f  := v.Field(i)
+		f := v.Field(i)
 		fT := f.Type()
 
 		var columnName string
@@ -230,51 +230,51 @@ func (db DB) GetWhereTailForFilter(filter interface{}, columnNameByFieldName fun
 			columnName = prefix + strings.Split(vs.Tag.Get("reform"), ",")[0]
 		}
 
-		switch (fT.Kind()) {
-			case reflect.Struct:
-				var embedded string
-				if imitateGorm {
-					_, _, embedded, _ = ParseStructFieldGormTag(tag.Get("gorm"), "")
-				} else {
-					_, _, embedded = ParseStructFieldTag(tag.Get("reform"))
-				}
+		switch fT.Kind() {
+		case reflect.Struct:
+			var embedded string
+			if imitateGorm {
+				_, _, embedded, _ = ParseStructFieldGormTag(tag.Get("gorm"), "")
+			} else {
+				_, _, embedded = ParseStructFieldTag(tag.Get("reform"))
+			}
 
-				switch embedded {
-				case "embedded", "prefixed":
-					nestedPrefix := prefix
-					if embedded == "prefixed" {
-						nestedPrefix += columnName+"__"
-					}
-					tailPart, args, er := db.GetWhereTailForFilter(f.Interface(), columnNameByFieldName, nestedPrefix, imitateGorm)
-					if er != nil {
-						err = er
-						return
-					}
-					if len(tailPart) > 0 {
-						whereTailStringParts = append(whereTailStringParts, tailPart)
-						whereTailArgs        = append(whereTailArgs, args...)
-					}
-					continue
-				case "":
-					if f.Interface() == reflect.Zero(fT).Interface() {
-						continue
-					}
-				default:
-					panic(fmt.Errorf("Not implemented case: embedded == \"%v\": %v (%T)", embedded, vTF.Name, f.Interface()))
+			switch embedded {
+			case "embedded", "prefixed":
+				nestedPrefix := prefix
+				if embedded == "prefixed" {
+					nestedPrefix += columnName + "__"
 				}
-			case reflect.Array, reflect.Slice, reflect.Map:
-				if reflect.DeepEqual(f.Interface(), reflect.Zero(fT).Interface()) {
-					continue
+				tailPart, args, er := db.GetWhereTailForFilter(f.Interface(), columnNameByFieldName, nestedPrefix, imitateGorm)
+				if er != nil {
+					err = er
+					return
 				}
-			default:
+				if len(tailPart) > 0 {
+					whereTailStringParts = append(whereTailStringParts, tailPart)
+					whereTailArgs = append(whereTailArgs, args...)
+				}
+				continue
+			case "":
 				if f.Interface() == reflect.Zero(fT).Interface() {
 					continue
 				}
+			default:
+				panic(fmt.Errorf("Not implemented case: embedded == \"%v\": %v (%T)", embedded, vTF.Name, f.Interface()))
+			}
+		case reflect.Array, reflect.Slice, reflect.Map:
+			if reflect.DeepEqual(f.Interface(), reflect.Zero(fT).Interface()) {
+				continue
+			}
+		default:
+			if f.Interface() == reflect.Zero(fT).Interface() {
+				continue
+			}
 		}
 
 		placeholderCounter++
 		whereTailStringParts = append(whereTailStringParts, db.EscapeTableName(columnName)+" = "+db.Dialect.Placeholder(placeholderCounter))
-		whereTailArgs        = append(whereTailArgs, f.Interface())
+		whereTailArgs = append(whereTailArgs, f.Interface())
 	}
 
 	tail = strings.Join(whereTailStringParts, " AND ")
