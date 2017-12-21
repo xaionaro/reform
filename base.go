@@ -116,6 +116,9 @@ type Table interface {
 
 	// PKColumnIndex returns an index of primary key column for that table in SQL database.
 	PKColumnIndex() uint
+
+	// Tries to create the table if it doesn't exist
+	CreateTableIfNotExists(*DB) (bool, error)
 }
 
 // Struct represents a row in SQL database view or table.
