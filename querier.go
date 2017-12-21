@@ -2,8 +2,8 @@ package reform
 
 import (
 	"database/sql"
-	mysqlDriver "github.com/go-sql-driver/mysql"
 	"fmt"
+	mysqlDriver "github.com/go-sql-driver/mysql"
 	"reflect"
 	"time"
 )
@@ -66,7 +66,7 @@ func (q *Querier) callStructMethod(str Struct, methodName string) error {
 			return f(q.dbForCallbacks)
 
 		default:
-			panic("Unknown type of method: \""+methodName+"\"")
+			panic("Unknown type of method: \"" + methodName + "\"")
 		}
 	}
 	return nil

@@ -32,15 +32,49 @@ func (q *Querier) NextRow(str Struct, rows *sql.Rows) error {
 }
 
 // selectQuery returns full SELECT query for given view and tail.
-func (q *Querier) selectQuery(view View, tail string, limit1 bool) string {
-	query := q.startQuery("SELECT")
+func (q *Querier) selectQuery(view View, tail string, limit1 bool, forceAnotherTable *string, forceFields []string) string {
+	queryStart := q.startQuery("SELECT")
 
 	if limit1 && q.SelectLimitMethod() == SelectTop {
-		query += " TOP 1"
+		queryStart += " TOP 1"
 	}
 
-	return fmt.Sprintf("%s %s FROM %s %s",
-		query, strings.Join(q.QualifiedColumns(view), ", "), q.QualifiedView(view), tail)
+	var columnsQuoted []string
+	if len(forceFields) > 0 {
+		for _, field := range forceFields {
+			column := view.ColumnNameByFieldName(field)
+			if column == "" {
+				panic("Unknown field:"+field)
+			}
+			columnsQuoted = append(columnsQuoted, q.QuoteIdentifier(column))
+		}
+	} else {
+		columnsQuoted = q.QualifiedColumns(view)
+	}
+	columnsQuery := strings.Join(columnsQuoted, ", ")
+
+	var tableQuery string
+	if forceAnotherTable == nil {
+		tableQuery = q.QualifiedView(view)
+	} else {
+		tableQuery = *forceAnotherTable
+	}
+
+	return fmt.Sprintf("%s %s FROM %s %s", queryStart, columnsQuery, tableQuery, tail)
+}
+
+// FlexSelectOneTo queries str's View with tail, args, forceAnotherTable and forceFields and scans first result to str.
+// If str has valid method "AfterFind", it also calls AfterFind().
+//
+// If there are no rows in result, it returns ErrNoRows. It also may return QueryRow(), Scan()
+// and AfterFind() errors.
+func (q *Querier) FlexSelectOneTo(str Struct, forceAnotherTable *string, forceFields []string, tail string, args ...interface{}) error {
+	query := q.selectQuery(str.View(), tail, true, forceAnotherTable, forceFields)
+	if err := q.QueryRow(query, args...).Scan(str.FieldPointersByNames(forceFields)...); err != nil {
+		return err
+	}
+
+	return q.callStructMethod(str, "AfterFind")
 }
 
 // SelectOneTo queries str's View with tail and args and scans first result to str.
@@ -49,12 +83,7 @@ func (q *Querier) selectQuery(view View, tail string, limit1 bool) string {
 // If there are no rows in result, it returns ErrNoRows. It also may return QueryRow(), Scan()
 // and AfterFind() errors.
 func (q *Querier) SelectOneTo(str Struct, tail string, args ...interface{}) error {
-	query := q.selectQuery(str.View(), tail, true)
-	if err := q.QueryRow(query, args...).Scan(str.Pointers()...); err != nil {
-		return err
-	}
-
-	return q.callStructMethod(str, "AfterFind")
+	return q.FlexSelectOneTo(str, nil, nil, tail, args...)
 }
 
 // SelectOneFrom queries view with tail and args and scans first result to new Struct str.
@@ -70,6 +99,17 @@ func (q *Querier) SelectOneFrom(view View, tail string, args ...interface{}) (St
 	return str, nil
 }
 
+// FlexSelectRows queries view with tail, args, forceAnotherTable and forceFields and returns rows. They can then be iterated with NextRow().
+// It is caller's responsibility to call rows.Close().
+//
+// In case of error rows will be nil. Error is never ErrNoRows.
+//
+// See example for idiomatic usage.
+func (q *Querier) FlexSelectRows(view View, forceAnotherTable *string, forceFields []string, tail string, args ...interface{}) (*sql.Rows, error) {
+	query := q.selectQuery(view, tail, false, forceAnotherTable, forceFields)
+	return q.Query(query, args...)
+}
+
 // SelectRows queries view with tail and args and returns rows. They can then be iterated with NextRow().
 // It is caller's responsibility to call rows.Close().
 //
@@ -77,7 +117,7 @@ func (q *Querier) SelectOneFrom(view View, tail string, args ...interface{}) (St
 //
 // See example for idiomatic usage.
 func (q *Querier) SelectRows(view View, tail string, args ...interface{}) (*sql.Rows, error) {
-	query := q.selectQuery(view, tail, false)
+	query := q.selectQuery(view, tail, false, nil, nil)
 	return q.Query(query, args...)
 }
 

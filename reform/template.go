@@ -41,11 +41,13 @@ import (
 type {{ .ScopeType }} struct {
 	item {{ .Type }}
 
-	db       *reform.DB
-	where [][]interface{}
-	order   []string
-	groupBy []string
-	limit     int
+	db            *reform.DB
+	where         [][]interface{}
+	order         []string
+	groupBy       []string
+	limit         int
+	tableQuery    *string
+	fieldsFilter []string
 
 	loggingEnabled  bool
 	loggingAuthor  *string
@@ -171,8 +173,7 @@ var {{ .LogTableVar }} = &{{ .LogTableType }} {
 	z: new({{ .LogType }}).Values(),
 }
 
-{{- if eq .ImitateGorm true }}
-func (s {{ .Type }}) columnNameByFieldName(fieldName string) string {
+func (s {{ .TableType }}) ColumnNameByFieldName(fieldName string) string {
 	switch (fieldName) {
 	{{- range $i, $f := .Fields }}
 	case "{{ $f.Name }}": return "{{ $f.Column }}"
@@ -180,7 +181,75 @@ func (s {{ .Type }}) columnNameByFieldName(fieldName string) string {
 	}
 	return ""
 }
-{{- end }}
+
+func (s {{ .LogTableType }}) ColumnNameByFieldName(fieldName string) string {
+	switch (fieldName) {
+	{{- range $i, $f := .Fields }}
+	case "{{ $f.Name }}": return "{{ $f.Column }}"
+	{{- end }}
+	case "LogAuthor": return "log_author"
+	case "LogAction": return "log_action"
+	case "LogDate": return "log_date"
+	case "LogComment": return "log_comment"
+	}
+	return ""
+}
+
+func (s *{{ .Type }}) FieldPointersByNames(fieldNames []string) (fieldPointers []interface{}) {
+	if len(fieldNames) == 0 {
+		return s.Pointers()
+	}
+
+	for _, fieldName := range fieldNames {
+		fieldPointer := s.FieldPointerByName(fieldName)
+		if fieldPointer == nil {
+			panic("Invalid field name:"+ fieldName)
+		}
+		fieldPointers = append(fieldPointers, fieldPointer)
+	}
+
+	return
+}
+
+func (s *{{ .LogType }}) FieldPointersByNames(fieldNames []string) (fieldPointers []interface{}) {
+	if len(fieldNames) == 0 {
+		return s.Pointers()
+	}
+
+	for _, fieldName := range fieldNames {
+		fieldPointer := s.FieldPointerByName(fieldName)
+		if fieldPointer == nil {
+			panic("Invalid field name:"+ fieldName)
+		}
+		fieldPointers = append(fieldPointers, fieldPointer)
+	}
+
+	return
+}
+
+func (s *{{ .Type }}) FieldPointerByName(fieldName string) interface{} {
+	switch (fieldName) {
+	{{- range $i, $f := .Fields }}
+	case "{{ $f.Name }}": return &s.{{ $f.FullName }}
+	{{- end }}
+	}
+
+	return nil
+}
+
+func (s *{{ .LogType }}) FieldPointerByName(fieldName string) interface{} {
+	switch (fieldName) {
+	{{- range $i, $f := .Fields }}
+	case "{{ $f.Name }}": return &s.{{ $f.FullName }}
+	{{- end }}
+	case "LogAuthor": return &s.LogAuthor
+	case "LogAction": return &s.LogAction
+	case "LogDate": return &s.LogDate
+	case "LogComment": return &s.LogComment
+	}
+
+	return nil
+}
 
 // String returns a string representation of this struct or record.
 func (s {{ .Type }}) String() string {
@@ -313,7 +382,7 @@ func (s *{{ .ScopeType }}) getOrderTail() (tail string, args []interface{}, err 
 // Compiles SQL tail for defined filter
 // TODO: should be compiled via dialects
 func (s *{{ .ScopeType }}) getWhereTailForFilter(filter {{ .FilterType }}) (tail string, whereTailArgs []interface{}, err error) {
-	return s.db.GetWhereTailForFilter({{ .Type }}(filter), {{ if .ImitateGorm }}s.columnNameByFieldName{{else}}nil{{end}}, "", {{ .ImitateGorm }})
+	return s.db.GetWhereTailForFilter({{ .Type }}(filter), {{ if .ImitateGorm }}{{ .Type }}View.ColumnNameByFieldName{{else}}nil{{end}}, "", {{ .ImitateGorm }})
 }
 
 // parseQuerierArgs considers different ways of defning the tail (using scope properties or/and in_args)
@@ -553,7 +622,7 @@ func (s {{ .ScopeType }}) Select(args ...interface{}) (result []{{.Type}}, err e
 		return
 	}
 
-	rows, err := s.db.SelectRows({{ .TableVar }}, tail, args...)
+	rows, err := s.db.FlexSelectRows({{ .TableVar }}, s.tableQuery, s.fieldsFilter, tail, args...)
 	if err != nil {
 		return
 	}
@@ -561,7 +630,7 @@ func (s {{ .ScopeType }}) Select(args ...interface{}) (result []{{.Type}}, err e
 
 	for rows.Next() {
 		item := {{ .Type }}{}
-		err = rows.Scan(item.Pointers()...)
+		err = rows.Scan(item.FieldPointersByNames(s.fieldsFilter)...)
 		if err != nil {
 			return
 		}
@@ -594,7 +663,7 @@ func (s {{ .ScopeType }}) First(args ...interface{}) (result {{.Type}}, err erro
 		return
 	}
 
-	err = s.db.SelectOneTo(&result, tail, args...)
+	err = s.db.FlexSelectOneTo(&result, s.tableQuery, s.fieldsFilter, tail, args...)
 
 	return
 }
@@ -616,6 +685,34 @@ func (s {{ .ScopeType }}) SetGroup(groupBy []string) (*{{ .ScopeType }}) {
 }
 func (s {{ .ScopeType }}) GetGroup() ([]string) {
 	return s.groupBy
+}
+
+// Sets a table query. For example SetTableQuery("table1 JOIN table2 USING(key)")
+func (s {{ .Type }}) SetTableQuery(query string) (scope *{{ .ScopeType }}) { return s.Scope().SetTableQuery(query) }
+func (s {{ .ScopeType }}) SetTableQuery(query string) (*{{ .ScopeType }}) {
+	if query == "" {
+		s.tableQuery = nil
+	} else {
+		s.tableQuery = &query
+	}
+	return &s
+}
+func (s {{ .ScopeType }}) GetTableQuery() string {
+	if s.tableQuery != nil {
+		return *s.tableQuery
+	}
+	return s.db.QualifiedView(s.View())
+}
+
+// Sets which structure fields should be queried while Select()/First(). For example SetFields("StructField1", "StructIdField", "StructCommentsField"). Could be used just to speed up a query.
+// It's not recommended to use this function!
+func (s {{ .Type }}) SetQueryFieldsByNames(fields ...string) (scope *{{ .ScopeType }}) { return s.Scope().SetQueryFieldsByNames(fields...) }
+func (s {{ .ScopeType }}) SetQueryFieldsByNames(fields ...string) (*{{ .ScopeType }}) {
+	s.fieldsFilter = fields
+	return &s
+}
+func (s {{ .ScopeType }}) GetQueryFields() []string {
+	return s.fieldsFilter
 }
 
 // Sets order. Arguments should be passed by pairs column-{ASC,DESC}. For example Order("id", "ASC", "value" "DESC")

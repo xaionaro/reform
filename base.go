@@ -22,12 +22,12 @@ var (
 
 // FieldInfo represents information about struct field.
 type FieldInfo struct {
-	Name       string // field name as defined in source file, e.g. Name
-	IsPK       bool   // is this field a primary key field
-	IsUnique   bool   // this field uses unique index in RDBMS
-	HasIndex   bool   // this field uses index in RDBMS
-	Type       string // field type as defined in source file, e.g. string
-	Column     string // SQL database column name from "reform:" struct field tag, e.g. name
+	Name       string      // field name as defined in source file, e.g. Name
+	IsPK       bool        // is this field a primary key field
+	IsUnique   bool        // this field uses unique index in RDBMS
+	HasIndex   bool        // this field uses index in RDBMS
+	Type       string      // field type as defined in source file, e.g. string
+	Column     string      // SQL database column name from "reform:" struct field tag, e.g. name
 	FieldsPath []FieldInfo // A path to the field via nested structures
 }
 
@@ -66,9 +66,9 @@ func (s *StructInfo) UnPointer() StructInfo {
 func (s StructInfo) ToLog() *StructInfo {
 	s.SQLName += "_log"
 	s.Fields = append(s.Fields, []FieldInfo{
-		FieldInfo{Name: "LogAuthor",  Type: "*string", Column: "log_author"},
-		FieldInfo{Name: "LogAction",  Type: "string", Column: "log_action"},
-		FieldInfo{Name: "LogDate",    Type: "time.Time", Column: "log_date"},
+		FieldInfo{Name: "LogAuthor", Type: "*string", Column: "log_author"},
+		FieldInfo{Name: "LogAction", Type: "string", Column: "log_action"},
+		FieldInfo{Name: "LogDate", Type: "time.Time", Column: "log_date"},
 		FieldInfo{Name: "LogComment", Type: "string", Column: "log_comment"},
 	}...)
 
@@ -99,6 +99,9 @@ type View interface {
 	// Columns returns a new slice of column names for that view or table in SQL database.
 	Columns() []string
 
+	// ColumnNameByFieldName returns the column name by a given field name
+	ColumnNameByFieldName(string) string
+
 	// NewStruct makes a new struct for that view or table.
 	NewStruct() Struct
 }
@@ -127,6 +130,12 @@ type Struct interface {
 	// Pointers returns a slice of pointers to struct or record fields.
 	// Returned interface{} values are never untyped nils.
 	Pointers() []interface{}
+
+	// FieldPointerByName return the pointer to the field of the Struct by the field name
+	FieldPointerByName(string) interface{}
+
+	// FieldPointersByNames return pointers to fields of the Struct by field names
+	FieldPointersByNames([]string) []interface{}
 
 	// View returns View object for that struct.
 	View() View
@@ -354,7 +363,7 @@ func ParseStructFieldGormTag(tag string, fieldName string) (sqlName string, isPK
 		return
 	}*/
 
-	for _, part := range parts/*[1:]*/ {
+	for _, part := range parts /*[1:]*/ {
 		subParts := strings.Split(part, ":")
 		switch subParts[0] {
 		case "primary_key":
