@@ -303,6 +303,9 @@ func (s *{{ .LogType }}) Pointers() []interface{} {
 func (s {{ .Type }}) View() reform.View {
 	return {{ .TableVar }}
 }
+func (s {{ .Type }}Scope) View() reform.View {
+	return s.item.View()
+}
 func (s {{ .LogType }}) View() reform.View {
 	return {{ .LogTableVar }}
 }
