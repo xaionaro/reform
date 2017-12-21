@@ -39,7 +39,7 @@ import (
 
 	structTemplate = template.Must(template.New("struct").Parse(`
 type {{ .ScopeType }} struct {
-	{{ .Type }}
+	item {{ .Type }}
 
 	db       *reform.DB
 	where [][]interface{}
@@ -240,7 +240,7 @@ func (s {{ .LogType }}) View() reform.View {
 
 // Generate a scope for object
 func (s {{ .Type }}) Scope() *{{ .ScopeType }} {
-	return &{{ .ScopeType }}{ {{ .Type }}: s, db: defaultDB_{{ .Type }} }
+	return &{{ .ScopeType }}{ item: s, db: defaultDB_{{ .Type }} }
 }
 
 // Sets DB to do queries
@@ -677,7 +677,7 @@ func (s *{{ .ScopeType }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Create() 
 func (s {{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Insert() (err error) { return s.Scope().{{ if eq .ImitateGorm true }}Reform{{ end }}Insert() }
 func (s *{{ .ScopeType }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Insert() (err error) {
 	s.checkDb()
-	err = s.db.Insert(&s.{{ .Type }})
+	err = s.db.Insert(&s.item)
 	if err == nil {
 		s.doLog("INSERT")
 	}
@@ -688,7 +688,7 @@ func (s *{{ .ScopeType }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Insert() 
 func (s {{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Save() (err error) { return s.Scope().{{ if eq .ImitateGorm true }}Reform{{ end }}Save() }
 func (s *{{ .ScopeType }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Save() (err error) {
 	s.checkDb()
-	err = s.db.Save(&s.{{ .Type }})
+	err = s.db.Save(&s.item)
 	if err == nil {
 		s.doLog("INSERT")
 	}
@@ -699,7 +699,7 @@ func (s *{{ .ScopeType }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Save() (e
 func (s {{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Update() (err error) { return s.Scope().{{ if eq .ImitateGorm true }}Reform{{ end }}Update() }
 func (s *{{ .ScopeType }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Update() (err error) {
 	s.checkDb()
-	err = s.db.Update(&s.{{ .Type }})
+	err = s.db.Update(&s.item)
 	if err == nil {
 		s.doLog("UPDATE")
 	}
@@ -710,7 +710,7 @@ func (s *{{ .ScopeType }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Update() 
 func (s {{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Delete() (err error) { return s.Scope().{{ if eq .ImitateGorm true }}Reform{{ end }}Delete() }
 func (s *{{ .ScopeType }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Delete() (err error) {
 	s.checkDb()
-	err = s.db.Delete(&s.{{ .Type }})
+	err = s.db.Delete(&s.item)
 	if err == nil {
 		s.doLog("DELETE")
 	}
@@ -723,7 +723,7 @@ func (s *{{ .ScopeType }}) doLog(requestType string) {
 	}
 
 	var logRow {{ .LogType }}
-	logRow.{{.Type}}  = s.{{.Type}}
+	logRow.{{.Type}}  = s.item
 	logRow.LogAuthor  = s.loggingAuthor
 	logRow.LogAction  = requestType
 	logRow.LogDate    = time.Now()
