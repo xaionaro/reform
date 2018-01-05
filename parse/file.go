@@ -239,6 +239,7 @@ func file(path string, forceImitateGorm *bool, fieldsPath []r.FieldInfo, forcePa
 			continue
 		}
 
+		skipMethodOrder := false
 		imitateGorm := false
 
 		for _, spec := range gd.Specs {
@@ -265,6 +266,8 @@ func file(path string, forceImitateGorm *bool, fieldsPath []r.FieldInfo, forcePa
 					switch optsMatches[1] {
 					case "imitateGorm":
 						imitateGorm = true
+					case "skipMethodOrder":
+						skipMethodOrder = true
 					}
 				}
 			}
@@ -311,6 +314,7 @@ func file(path string, forceImitateGorm *bool, fieldsPath []r.FieldInfo, forcePa
 			s.SQLSchema = schema
 			s.SQLName = table
 			s.ImitateGorm = imitateGorm
+			s.SkipMethodOrder = skipMethodOrder
 			res = append(res, *s)
 		}
 	}

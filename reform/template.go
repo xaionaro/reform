@@ -20,6 +20,7 @@ type StructData struct {
 	IsPrivateStruct     bool
 	QuerierVar          string
 	ImitateGorm         bool
+	SkipMethodOrder     bool
 }
 
 var (
@@ -718,6 +719,7 @@ func (s {{ .ScopeType }}) GetQueryFields() []string {
 	return s.fieldsFilter
 }
 
+{{- if not .SkipMethodOrder }}
 // Sets order. Arguments should be passed by pairs column-{ASC,DESC}. For example Order("id", "ASC", "value" "DESC")
 func (s {{ .Type }}) Order(args ...interface{}) (scope *{{ .ScopeType }}) { return s.Scope().Order(args...) }
 func (s {{ .ScopeType }}) Order(argsI ...interface{}) (*{{ .ScopeType }}) {
@@ -741,6 +743,7 @@ func (s {{ .ScopeType }}) Order(argsI ...interface{}) (*{{ .ScopeType }}) {
 
 	return &s
 }
+{{- end }}
 func (s {{ .ScopeType }}) SetOrder(order []string) (*{{ .ScopeType }}) {
 	s.order = order
 	return &s

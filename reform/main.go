@@ -105,6 +105,7 @@ func processFile(path, file, pack string) error {
 			IsPrivateStruct:     isPrivateStruct,
 			QuerierVar:          querierVar,
 			ImitateGorm:         str.ImitateGorm,
+			SkipMethodOrder:     str.SkipMethodOrder,
 		}
 		sds = append(sds, sd)
 

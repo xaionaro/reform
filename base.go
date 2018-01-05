@@ -42,12 +42,13 @@ func (f FieldInfo) FullName() string {
 
 // StructInfo represents information about struct.
 type StructInfo struct {
-	Type         string      // struct type as defined in source file, e.g. User
-	SQLSchema    string      // SQL database schema name from magic "reform:" comment, e.g. public
-	SQLName      string      // SQL database view or table name from magic "reform:" comment, e.g. users
-	Fields       []FieldInfo // fields info
-	PKFieldIndex int         // index of primary key field in Fields, -1 if none
-	ImitateGorm  bool        // act like GORM (https://github.com/jinzhu/gorm)
+	Type            string      // struct type as defined in source file, e.g. User
+	SQLSchema       string      // SQL database schema name from magic "reform:" comment, e.g. public
+	SQLName         string      // SQL database view or table name from magic "reform:" comment, e.g. users
+	Fields          []FieldInfo // fields info
+	PKFieldIndex    int         // index of primary key field in Fields, -1 if none
+	ImitateGorm     bool        // act like GORM (https://github.com/jinzhu/gorm)
+	SkipMethodOrder bool        // do not create method Order()
 }
 
 // Columns returns a new slice of column names.
