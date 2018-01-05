@@ -66,7 +66,6 @@ func parseStructTypeSpec(ts *ast.TypeSpec, str *ast.StructType, imitateGorm bool
 		PKFieldIndex: -1,
 	}
 
-	var n int
 	for _, f := range str.Fields.List {
 		// skip if tag "sql" is equals to "-"
 		tag := getFieldTag(f)
@@ -195,10 +194,13 @@ func parseStructTypeSpec(ts *ast.TypeSpec, str *ast.StructType, imitateGorm bool
 				return nil, fmt.Errorf(`reform: %s has field %s that references to file %s, but the file doesn't have a structure %s`, res.Type, fieldName, structFile, f.Type)
 			}
 		}
-		if isPK {
-			res.PKFieldIndex = n
+	}
+
+	for idx, field := range res.Fields {
+		if field.IsPK {
+			res.PKFieldIndex = idx
+			break
 		}
-		n++
 	}
 
 	if forceParse {	// TODO: Re-enable checkes and error reporting for forceParse == true
@@ -263,11 +265,14 @@ func file(path string, forceImitateGorm *bool, fieldsPath []r.FieldInfo, forcePa
 			if doc != nil {
 				optsMatches := magicReformOptionsComment.FindStringSubmatch(doc.Text())
 				if len(optsMatches) >= 2 {
-					switch optsMatches[1] {
-					case "imitateGorm":
-						imitateGorm = true
-					case "skipMethodOrder":
-						skipMethodOrder = true
+					opts := strings.Split(optsMatches[1], ",")
+					for _, opt := range opts {
+						switch opt {
+						case "imitateGorm":
+							imitateGorm = true
+						case "skipMethodOrder":
+							skipMethodOrder = true
+						}
 					}
 				}
 			}

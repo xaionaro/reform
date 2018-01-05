@@ -386,7 +386,7 @@ func (s *{{ .ScopeType }}) getOrderTail() (tail string, args []interface{}, err 
 // Compiles SQL tail for defined filter
 // TODO: should be compiled via dialects
 func (s *{{ .ScopeType }}) getWhereTailForFilter(filter {{ .FilterType }}) (tail string, whereTailArgs []interface{}, err error) {
-	return s.db.GetWhereTailForFilter({{ .Type }}(filter), {{ if .ImitateGorm }}{{ .Type }}View.ColumnNameByFieldName{{else}}nil{{end}}, "", {{ .ImitateGorm }})
+	return s.db.GetWhereTailForFilter({{ .Type }}(filter), {{ if .ImitateGorm }}{{ .TableVar }}.ColumnNameByFieldName{{else}}nil{{end}}, "", {{ .ImitateGorm }})
 }
 
 // parseQuerierArgs considers different ways of defning the tail (using scope properties or/and in_args)
