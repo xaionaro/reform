@@ -50,7 +50,7 @@ func filteredColumnsAndValues(str Struct, columnsIn []string, isUpdate bool) (co
 	return
 }
 
-func (q *Querier) insert(str Struct, columns []string, values []interface{}) error {
+func (q *Querier) insertOrReplace(cmdStr string, str Struct, columns []string, values []interface{}) error {
 	for i, c := range columns {
 		columns[i] = q.QuoteIdentifier(c)
 	}
@@ -67,7 +67,7 @@ func (q *Querier) insert(str Struct, columns []string, values []interface{}) err
 	}
 
 	// make query
-	query := q.startQuery("INSERT") + " INTO " + q.QualifiedView(view)
+	query := q.startQuery(cmdStr) + " INTO " + q.QualifiedView(view)
 	if len(columns) != 0 || defaultValuesMethod == EmptyLists {
 		query += " (" + strings.Join(columns, ", ") + ")"
 	}
@@ -120,12 +120,7 @@ func (q *Querier) afterInsert(str Struct) error {
 	return q.callStructMethod(str, "AfterInsert")
 }
 
-// Insert inserts a struct into SQL database table.
-// If str has valid method "BeforeInsert", it calls BeforeInsert() before doing so.
-// If str has valid method "AfterInsert", it calls AfterInsert() after doing so.
-//
-// It fills record's primary key field.
-func (q *Querier) Insert(str Struct) error {
+func (q *Querier) insertOrReplaceWrapper(cmdStr string, str Struct) error {
 	if err := q.beforeInsert(str); err != nil {
 		return err
 	}
@@ -145,13 +140,31 @@ func (q *Querier) Insert(str Struct) error {
 		}
 	}
 
-	err := q.insert(str, columns, values)
+	err := q.insertOrReplace(cmdStr, str, columns, values)
 
 	if err == nil {
 		return q.afterInsert(str)
 	}
 
 	return err
+}
+
+// Insert inserts a struct into SQL database table.
+// If str has valid method "BeforeInsert", it calls BeforeInsert() before doing so.
+// If str has valid method "AfterInsert", it calls AfterInsert() after doing so.
+//
+// It fills record's primary key field.
+func (q *Querier) Insert(str Struct) error {
+	return q.insertOrReplaceWrapper("INSERT", str)
+}
+
+// Replace "REPLACE INTO" a struct into SQL database table.
+// If str has valid method "BeforeInsert", it calls BeforeInsert() before doing so.
+// If str has valid method "AfterInsert", it calls AfterInsert() after doing so.
+//
+// It fills record's primary key field.
+func (q *Querier) Replace(str Struct) error {
+	return q.insertOrReplaceWrapper("REPLACE", str)
 }
 
 // InsertColumns inserts a struct into SQL database table with specified columns.
@@ -170,7 +183,7 @@ func (q *Querier) InsertColumns(str Struct, columns ...string) error {
 		return err
 	}
 
-	err = q.insert(str, columns, values)
+	err = q.insertOrReplace("INSERT", str, columns, values)
 
 	if err == nil {
 		return q.afterInsert(str)

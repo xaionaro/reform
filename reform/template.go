@@ -42,13 +42,14 @@ import (
 type {{ .ScopeType }} struct {
 	item {{ .Type }}
 
-	db            *reform.DB
-	where         [][]interface{}
-	order         []string
-	groupBy       []string
-	limit         int
-	tableQuery    *string
+	db           *reform.DB
+	where        [][]interface{}
+	order        []string
+	groupBy      []string
+	limit        int
+	tableQuery   *string
 	fieldsFilter []string
+	appendTail   string
 
 	loggingEnabled  bool
 	loggingAuthor  *string
@@ -558,6 +559,11 @@ func (s *{{ .ScopeType }}) getTail() (tail string, args []interface{}, err error
 	}
 
 	tail = whereTailString+groupTailString+orderTailString+limitTailString
+
+	if len(s.appendTail) > 0 {
+		tail += " " + s.appendTail
+	}
+
 	return
 
 }
@@ -752,6 +758,12 @@ func (s {{ .ScopeType }}) GetOrder() ([]string) {
 	return s.order
 }
 
+func (s {{ .Type }}) SetSQLAppend(appendTail string) (scope *{{ .ScopeType }}) { return s.Scope().SetSQLAppend(appendTail) }
+func (s {{ .ScopeType }}) SetSQLAppend(appendTail string) (*{{ .ScopeType }}) {
+	s.appendTail = appendTail
+	return &s
+}
+
 // Sets limit.
 func (s {{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Limit(limit int) (scope *{{ .ScopeType }}) { return s.Scope().Limit(limit) }
 func (s *{{ .ScopeType }}) Limit(limit int) (*{{ .ScopeType }}) {
@@ -783,6 +795,17 @@ func (s *{{ .ScopeType }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Insert() 
 	err = s.db.Insert(&s.item)
 	if err == nil {
 		s.doLog("INSERT")
+	}
+	return err
+}
+
+// Replace "REPLACE INTO" new record to DB
+func (s {{ .Type }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Replace() (err error) { return s.Scope().{{ if eq .ImitateGorm true }}Reform{{ end }}Replace() }
+func (s *{{ .ScopeType }}) {{ if eq .ImitateGorm true }}Reform{{ end }}Replace() (err error) {
+	s.checkDb()
+	err = s.db.Replace(&s.item)
+	if err == nil {
+		s.doLog("REPLACE")
 	}
 	return err
 }
