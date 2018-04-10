@@ -298,6 +298,10 @@ type GormImitateScope interface {
 	ReformDelete() error
 }
 
+type GetCustomReformDBer interface {
+	GetCustomReformDB() *DB
+}
+
 // parseStructFieldTag is used by both file and runtime parsers to parse "reform" tags
 func ParseStructFieldTag(tag string) (sqlName string, isPK bool, embedded string) {
 	parts := strings.Split(tag, ",")

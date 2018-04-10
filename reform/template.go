@@ -240,7 +240,15 @@ func (s {{ .LogType }}) View() reform.View {
 
 // Generate a scope for object
 func (s {{ .Type }}) Scope() *{{ .ScopeType }} {
-	return &{{ .ScopeType }}{ {{ .Type }}: s, db: defaultDB_{{ .Type }} }
+	var db *reform.DB
+	sI, ok := ((interface{})(s)).(reform.GetCustomReformDBer)
+	if ok {
+		db = sI.GetCustomReformDB()
+	}
+	if db == nil {
+		db = defaultDB_{{ .Type }}
+	}
+	return &{{ .ScopeType }}{ {{ .Type }}: s, db: db }
 }
 
 // Sets DB to do queries
