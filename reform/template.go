@@ -576,7 +576,7 @@ func (s *{{ .ScopeType }}) SelectRows(query string, queryArgs ...interface{}) (r
 		return
 	}
 
-	return s.db.Query("SELECT "+query+" FROM `+"`"+`"+{{ .TableVar }}.Name()+"`+"`"+` "+tail, append(queryArgs, args...)...)
+	return s.db.Query("SELECT "+query+" FROM ` + "`" + `"+{{ .TableVar }}.Name()+"` + "`" + ` "+tail, append(queryArgs, args...)...)
 }
 
 func (s *{{ .ScopeType }}) callStructMethod(str *{{ .Type }}, methodName string) error {

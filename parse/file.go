@@ -119,8 +119,7 @@ func parseStructTypeSpec(ts *ast.TypeSpec, str *ast.StructType, imitateGorm bool
 		if imitateGorm {
 			column, isPK, embedded, structFile = r.ParseStructFieldGormTag(tagString, fieldName)
 		} else {
-			column, isPK, embedded = r.ParseStructFieldTag(tagString)
-			structFile = embedded
+			column, isPK, embedded, structFile = r.ParseStructFieldTag(tagString)
 		}
 		if isPK && (embedded != "") {
 			return nil, fmt.Errorf(`reform: %s has field %s (of type %s) that is the primary key and an embedded structure in the same time`, res.Type, fieldName, f.Type)
@@ -149,7 +148,7 @@ func parseStructTypeSpec(ts *ast.TypeSpec, str *ast.StructType, imitateGorm bool
 			IsUnique:   isUnique,
 			HasIndex:   hasIndex,
 			Type:       fType,
-			Column:     prefix+column,
+			Column:     prefix + column,
 			FieldsPath: fieldsPath,
 		}
 
@@ -199,7 +198,7 @@ func parseStructTypeSpec(ts *ast.TypeSpec, str *ast.StructType, imitateGorm bool
 		}
 	}
 
-	if forceParse {	// TODO: Re-enable checkes and error reporting for forceParse == true
+	if forceParse { // TODO: Re-enable checkes and error reporting for forceParse == true
 		return res, nil
 	}
 

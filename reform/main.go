@@ -29,7 +29,7 @@ func processFile(path, file, pack string) error {
 
 	ext := filepath.Ext(file)
 	base := strings.TrimSuffix(file, ext)
-	outFileName := base+"_reform"+ext
+	outFileName := base + "_reform" + ext
 
 	outFileInfo, outFileInfoErr := os.Stat(outFileName)
 	if outFileInfoErr == nil {

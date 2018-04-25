@@ -102,4 +102,3 @@ func checkFields(res *r.StructInfo) error {
 
 	return nil
 }
-

@@ -92,8 +92,7 @@ func object(t reflect.Type, schema, table string, imitateGorm bool, fieldsPath [
 		if imitateGorm {
 			column, isPK, embedded, structFile = r.ParseStructFieldGormTag(tagString, fieldName)
 		} else {
-			column, isPK, embedded = r.ParseStructFieldTag(tagString)
-			structFile = embedded
+			column, isPK, embedded, structFile = r.ParseStructFieldTag(tagString)
 		}
 		if isPK && (embedded != "") {
 			return nil, fmt.Errorf(`reform: %s has field %s that is the primary key and an embedded structure in the same time`, res.Type, f.Type)
@@ -122,7 +121,7 @@ func object(t reflect.Type, schema, table string, imitateGorm bool, fieldsPath [
 			IsUnique:   isUnique,
 			HasIndex:   hasIndex,
 			Type:       fType,
-			Column:     prefix+column,
+			Column:     prefix + column,
 			FieldsPath: fieldsPath,
 		}
 

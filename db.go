@@ -236,7 +236,7 @@ func (db DB) GetWhereTailForFilter(filter interface{}, columnNameByFieldName fun
 			if imitateGorm {
 				_, _, embedded, _ = ParseStructFieldGormTag(tag.Get("gorm"), "")
 			} else {
-				_, _, embedded = ParseStructFieldTag(tag.Get("reform"))
+				_, _, embedded, _ = ParseStructFieldTag(tag.Get("reform"))
 			}
 
 			switch embedded {

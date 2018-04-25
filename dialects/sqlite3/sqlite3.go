@@ -62,7 +62,7 @@ func (sqlite3) ColumnDefinitionForField(field reform.FieldInfo) string {
 
 	columnType := Dialect.ColumnTypeForField(field)
 
-	definition := field.Column + " " + columnType	// TODO: escape everything
+	definition := field.Column + " " + columnType // TODO: escape everything
 
 	if field.IsPK {
 		definition += " PRIMARY KEY"
@@ -84,7 +84,7 @@ func (sqlite3) ColumnDefinitionForField(field reform.FieldInfo) string {
 
 func (sqlite3) ColumnDefinitionPostQueryForField(structInfo reform.StructInfo, field reform.FieldInfo) string {
 	if field.HasIndex {
-		return "CREATE INDEX IF NOT EXISTS idx_"+structInfo.SQLName+"_"+field.Column+" ON "+structInfo.SQLName+"("+field.Column+")"	// TODO: escape everything
+		return "CREATE INDEX IF NOT EXISTS idx_" + structInfo.SQLName + "_" + field.Column + " ON " + structInfo.SQLName + "(" + field.Column + ")" // TODO: escape everything
 	}
 
 	return ""

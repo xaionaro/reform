@@ -67,10 +67,10 @@ func (s *StructInfo) UnPointer() StructInfo {
 func (s StructInfo) ToLog() *StructInfo {
 	s.SQLName += "_log"
 	s.Fields = append(s.Fields, []FieldInfo{
-		FieldInfo{Name: "LogAuthor", Type: "*string", Column: "log_author"},
-		FieldInfo{Name: "LogAction", Type: "string", Column: "log_action"},
-		FieldInfo{Name: "LogDate", Type: "time.Time", Column: "log_date"},
-		FieldInfo{Name: "LogComment", Type: "string", Column: "log_comment"},
+		{Name: "LogAuthor", Type: "*string", Column: "log_author"},
+		{Name: "LogAction", Type: "string", Column: "log_action"},
+		{Name: "LogDate", Type: "time.Time", Column: "log_date"},
+		{Name: "LogComment", Type: "string", Column: "log_comment"},
 	}...)
 
 	return &s
@@ -312,7 +312,7 @@ type GormImitateScope interface {
 }
 
 // parseStructFieldTag is used by both file and runtime parsers to parse "reform" tags
-func ParseStructFieldTag(tag string) (sqlName string, isPK bool, embedded string) {
+func ParseStructFieldTag(tag string) (sqlName string, isPK bool, embedded string, structFile string) {
 	parts := strings.Split(tag, ",")
 	if len(parts) == 0 {
 		return
@@ -329,6 +329,8 @@ func ParseStructFieldTag(tag string) (sqlName string, isPK bool, embedded string
 				isPK = true
 			case "embedded":
 				embedded = subParts[1]
+			case "file":
+				structFile = subParts[1]
 			default:
 				// TODO: notify about the error
 				return

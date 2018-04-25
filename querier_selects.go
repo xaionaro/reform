@@ -44,7 +44,7 @@ func (q *Querier) selectQuery(view View, tail string, limit1 bool, forceAnotherT
 		for _, field := range forceFields {
 			column := view.ColumnNameByFieldName(field)
 			if column == "" {
-				panic("Unknown field:"+field)
+				panic("Unknown field:" + field)
 			}
 			columnsQuoted = append(columnsQuoted, q.QuoteIdentifier(column))
 		}

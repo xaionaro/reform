@@ -64,7 +64,7 @@ func (mysql) ColumnDefinitionForField(field reform.FieldInfo) string {
 
 	columnType := Dialect.ColumnTypeForField(field)
 
-	definition := field.Column + " " + columnType	// TODO: escape everything
+	definition := field.Column + " " + columnType // TODO: escape everything
 
 	if field.IsPK {
 		definition += " PRIMARY KEY"
