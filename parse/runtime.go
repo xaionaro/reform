@@ -77,16 +77,7 @@ func object(t reflect.Type, schema, table string, imitateGorm bool, fieldsPath [
 		}
 
 		// getting field name
-		var fieldName string
-		if f.Anonymous {
-			if imitateGorm {
-				fieldName = f.Name
-			} else {
-				return nil, fmt.Errorf(`reform: %s has reform-active anonymous field "%s", it is not allowed`, res.Type, f.Name)
-			}
-		} else {
-			fieldName = f.Name
-		}
+		fieldName := f.Name
 
 		// check for exported name
 		if f.PkgPath != "" {
@@ -107,7 +98,7 @@ func object(t reflect.Type, schema, table string, imitateGorm bool, fieldsPath [
 		if isPK && (embedded != "") {
 			return nil, fmt.Errorf(`reform: %s has field %s that is the primary key and an embedded structure in the same time`, res.Type, f.Type)
 		}
-		if column == "" {
+		if column == "" && embedded == "" {
 			return nil, fmt.Errorf(`reform: %s has field %s with invalid "reform:"/"gorm:" tag value, it is not allowed`, res.Type, fieldName)
 		}
 		fType := objectGoType(f.Type, t)

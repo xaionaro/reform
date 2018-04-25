@@ -91,11 +91,7 @@ func parseStructTypeSpec(ts *ast.TypeSpec, str *ast.StructType, imitateGorm bool
 		// getting field name
 		var fieldName string
 		if len(f.Names) == 0 {
-			if imitateGorm {
-				fieldName = fType
-			} else {
-				return nil, fmt.Errorf(`reform: %s has reform-active anonymous field "%s", it is not allowed`, res.Type, f.Type)
-			}
+			fieldName = fType
 
 			// check for exported name
 			fieldNameFirstCharacter := fieldName[0:1]
@@ -129,7 +125,7 @@ func parseStructTypeSpec(ts *ast.TypeSpec, str *ast.StructType, imitateGorm bool
 		if isPK && (embedded != "") {
 			return nil, fmt.Errorf(`reform: %s has field %s (of type %s) that is the primary key and an embedded structure in the same time`, res.Type, fieldName, f.Type)
 		}
-		if column == "" {
+		if column == "" && embedded == "" {
 			return nil, fmt.Errorf(`reform: %s has field %s (of type %s) with invalid "reform:"/"gorm:" tag value, it is not allowed`, res.Type, fieldName, f.Type)
 		}
 
