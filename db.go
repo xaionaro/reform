@@ -256,7 +256,7 @@ func (db DB) GetWhereTailForFilter(filter interface{}, columnNameByFieldName fun
 				}
 				continue
 			case "":
-				if f.Interface() == reflect.Zero(fT).Interface() {
+				if reflect.DeepEqual(f.Interface(), reflect.Zero(fT).Interface()) {
 					continue
 				}
 			default:
