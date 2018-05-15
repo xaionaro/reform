@@ -64,31 +64,31 @@ func parseStructFieldSQLTag(tag string) (isUnique bool, hasIndex bool) {
 }
 
 func (f *FieldInfo) ConsiderTag(imitateGorm bool, fieldName string, tag reflect.StructTag) {
-		var column string
-		var isPK bool
-		var embedded string
-		var structFile string
-		if imitateGorm {
-			column, isPK, embedded, structFile = ParseStructFieldGormTag(tag.Get("gorm"), fieldName)
-		} else {
-			column, isPK, embedded, structFile = ParseStructFieldTag(tag.Get("reform"))
+	var column string
+	var isPK bool
+	var embedded string
+	var structFile string
+	if imitateGorm {
+		column, isPK, embedded, structFile = ParseStructFieldGormTag(tag.Get("gorm"), fieldName)
+	} else {
+		column, isPK, embedded, structFile = ParseStructFieldTag(tag.Get("reform"))
+	}
+	isUnique, hasIndex := parseStructFieldSQLTag(tag.Get("sql"))
+	sqlSizeString := tag.Get("sql_size")
+	if sqlSizeString != "" {
+		sqlSize, err := strconv.Atoi(sqlSizeString)
+		if err != nil {
+			panic(err)
 		}
-		isUnique, hasIndex := parseStructFieldSQLTag(tag.Get("sql"))
-		sqlSizeString := tag.Get("sql_size")
-		if sqlSizeString != "" {
-			sqlSize, err := strconv.Atoi(sqlSizeString)
-			if err != nil {
-				panic(err)
-			}
-			f.SQLSize = sqlSize
-		}
+		f.SQLSize = sqlSize
+	}
 
-		f.Column     = column
-		f.IsPK       = isPK
-		f.Embedded   = embedded
-		f.StructFile = structFile
-		f.IsUnique   = isUnique
-		f.HasIndex   = hasIndex
+	f.Column = column
+	f.IsPK = isPK
+	f.Embedded = embedded
+	f.StructFile = structFile
+	f.IsUnique = isUnique
+	f.HasIndex = hasIndex
 }
 
 // StructInfo represents information about struct.
@@ -232,7 +232,6 @@ type DBTX interface {
 	// QueryRow executes a query that is expected to return at most one row.
 	// QueryRow always returns a non-nil value. Errors are deferred until Row's Scan method is called.
 	QueryRow(query string, args ...interface{}) *sql.Row
-
 }
 
 type QuerierI interface {

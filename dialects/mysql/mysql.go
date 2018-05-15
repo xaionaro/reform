@@ -84,14 +84,14 @@ func (mysql) ColumnDefinitionForField(field reform.FieldInfo) string {
 	}
 
 	if field.IsUnique {
-			definition += " UNIQUE"
+		definition += " UNIQUE"
 	}
 
 	if !canBeNull {
 		definition += " NOT NULL"
 	}
 	if field.HasIndex {
-			definition += ", INDEX (`"+field.Column+"`)"
+		definition += ", INDEX (`" + field.Column + "`)"
 	}
 
 	return definition
