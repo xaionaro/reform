@@ -181,6 +181,29 @@ type DBTX interface {
 	// QueryRow executes a query that is expected to return at most one row.
 	// QueryRow always returns a non-nil value. Errors are deferred until Row's Scan method is called.
 	QueryRow(query string, args ...interface{}) *sql.Row
+
+}
+
+type QuerierI interface {
+	EscapeTableName(tableName string) string
+	GetWhereTailForFilter(filter interface{}, columnNameByFieldName func(string) string, prefix string, imitateGorm bool) (tail string, whereTailArgs []interface{}, err error)
+	OperatorAndPlaceholderOfValueForSQL(valueI interface{}, placeholderCounter int) string
+	ValueForSQL(valueI interface{}) []interface{}
+	SplitConditionByPlaceholders(condition string) []string
+	GetDialect() Dialect
+	FlexSelectRows(view View, forceAnotherTable *string, forceFields []string, tail string, args ...interface{}) (*sql.Rows, error)
+	FlexSelectOneTo(str Struct, forceAnotherTable *string, forceFields []string, tail string, args ...interface{}) error
+	QualifiedView(view View) string
+	Insert(str Struct) error
+	Replace(str Struct) error
+	Save(record Record) error
+	Update(record Record) error
+	Delete(record Record) error
+}
+
+type ReformDBTX interface {
+	DBTX
+	QuerierI
 }
 
 // LastInsertIdMethod is a method of receiving primary key of last inserted row.

@@ -42,7 +42,7 @@ import (
 type {{ .ScopeType }} struct {
 	item {{ .Type }}
 
-	db           *reform.DB
+	db           reform.ReformDBTX
 	where        [][]interface{}
 	order        []string
 	groupBy      []string
@@ -318,8 +318,8 @@ func (s {{ .Type }}) Scope() *{{ .ScopeType }} {
 }
 
 // Sets DB to do queries
-func (s {{ .Type }}) DB(db *reform.DB) (scope *{{ .ScopeType }}) { return s.Scope().DB(db) }
-func (s *{{ .ScopeType }}) DB(db *reform.DB) *{{ .ScopeType }} {
+func (s {{ .Type }}) DB(db reform.ReformDBTX) (scope *{{ .ScopeType }}) { return s.Scope().DB(db) }
+func (s *{{ .ScopeType }}) DB(db reform.ReformDBTX) *{{ .ScopeType }} {
 	if db != nil {
 		s.db = db
 	}
@@ -331,9 +331,14 @@ func (s *{{ .ScopeType }}) DB(db *reform.DB) *{{ .ScopeType }} {
 }
 
 // Gets DB
-func (s {{ .Type }}) Get{{ if eq .ImitateGorm true }}Reform{{ end }}DB() (db *reform.DB) { return s.Scope().Get{{ if eq .ImitateGorm true }}Reform{{ end }}DB() }
-func (s {{ .ScopeType }}) Get{{ if eq .ImitateGorm true }}Reform{{ end }}DB() *reform.DB {
+func (s {{ .Type }}) Get{{ if eq .ImitateGorm true }}Reform{{ end }}DB() (db reform.ReformDBTX) { return s.Scope().Get{{ if eq .ImitateGorm true }}Reform{{ end }}DB() }
+func (s {{ .ScopeType }}) Get{{ if eq .ImitateGorm true }}Reform{{ end }}DB() reform.ReformDBTX {
 	return s.db
+}
+
+func (s {{ .Type }}) StartTransaction() (*reform.TX, error) { return s.Scope().StartTransaction() }
+func (s {{ .ScopeType }}) StartTransaction() (*reform.TX, error) {
+	return s.db.(*reform.DB).Begin()
 }
 
 // Sets default DB (to do not call the scope.DB() method every time)
@@ -411,7 +416,7 @@ func (s {{ .ScopeType }}) parseWhereTailComponent(in_args []interface{}, placeho
 				newArgs := s.db.ValueForSQL(rawNewArgs)
 				newTailWords := []string{}
 				for range newArgs {
-					newTailWords = append(newTailWords, s.db.Dialect.Placeholder(*placeholderCounter))
+					newTailWords = append(newTailWords, s.db.GetDialect().Placeholder(*placeholderCounter))
 					*placeholderCounter++
 				}
 				tail += tailWords[idx] + strings.Join(newTailWords, ",")
@@ -585,7 +590,7 @@ func (s *{{ .ScopeType }}) callStructMethod(str *{{ .Type }}, methodName string)
 		case func():
 			f()
 
-		case func(*reform.DB):
+		case func(reform.DBTX):
 			f(s.db)
 
 		case func(*{{ .ScopeType }}):
@@ -597,7 +602,7 @@ func (s *{{ .ScopeType }}) callStructMethod(str *{{ .Type }}, methodName string)
 		case func() error:
 			return f()
 
-		case func(*reform.DB) error:
+		case func(reform.DBTX) error:
 			return f(s.db)
 
 		case func(*{{ .ScopeType }}) error:

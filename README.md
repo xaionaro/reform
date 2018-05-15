@@ -148,6 +148,8 @@ records: [Id: 1 (int), CreatedAt: 2016-06-27 11:11:34 +0000 UTC (time.Time), Sen
 
 See more examples here:
 
+* transactions example [https://github.com/dxcenter/chess/blob/4131dcd33999a905ec8a7b06ea4a04e48a99e4df/serverMethods/middleware/sign_up.go#L53](https://github.com/dxcenter/chess/blob/4131dcd33999a905ec8a7b06ea4a04e48a99e4df/serverMethods/middleware/sign_up.go#L53)
+* [https://devel.mephi.ru/dyokunev/dc-thermal-logger/src/master/server/httpsite/app/init.go](https://devel.mephi.ru/dyokunev/dc-thermal-logger/src/master/server/httpsite/app/init.go)
 * [https://devel.mephi.ru/dyokunev/dc-thermal-logger/src/master/server/httpsite/app/init.go](https://devel.mephi.ru/dyokunev/dc-thermal-logger/src/master/server/httpsite/app/init.go)
 * [https://devel.mephi.ru/dyokunev/dc-thermal-logger/src/master/server/httpsite/app/controllers/Dashboard.go](https://devel.mephi.ru/dyokunev/dc-thermal-logger/src/master/server/httpsite/app/controllers/Dashboard.go)
 
