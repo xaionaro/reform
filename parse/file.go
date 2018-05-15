@@ -111,24 +111,24 @@ func parseStructTypeSpec(ts *ast.TypeSpec, str *ast.StructType, imitateGorm bool
 			}
 		}
 
-		// parse tag and type
-		var column string
-		var isPK bool
-		var embedded string
-		var structFile string
-		if imitateGorm {
-			column, isPK, embedded, structFile = r.ParseStructFieldGormTag(tagString, fieldName)
-		} else {
-			column, isPK, embedded, structFile = r.ParseStructFieldTag(tagString)
+		// getting FieldInfo
+		fieldInfo := r.FieldInfo{
+			Name:       fieldName,
+			Type:       fType,
+			FieldsPath: fieldsPath,
 		}
-		if isPK && (embedded != "") {
+		fieldInfo.ConsiderTag(imitateGorm, fieldName, tag)
+
+		if fieldInfo.IsPK && (fieldInfo.Embedded != "") {
 			return nil, fmt.Errorf(`reform: %s has field %s (of type %s) that is the primary key and an embedded structure in the same time`, res.Type, fieldName, f.Type)
 		}
-		if column == "" && embedded == "" {
+		if fieldInfo.Column == "" && fieldInfo.Embedded == "" {
 			return nil, fmt.Errorf(`reform: %s has field %s (of type %s) with invalid "reform:"/"gorm:" tag value, it is not allowed`, res.Type, fieldName, f.Type)
 		}
 
-		if isPK {
+		fieldInfo.Column = prefix + fieldInfo.Column
+
+		if fieldInfo.IsPK {
 			if strings.HasPrefix(fType, "*") {
 				return nil, fmt.Errorf(`reform: %s has pointer field %s (of type %s) with a primary field tag, it is not allowed`, res.Type, fieldName, f.Type)
 			}
@@ -140,39 +140,27 @@ func parseStructTypeSpec(ts *ast.TypeSpec, str *ast.StructType, imitateGorm bool
 			}
 		}
 
-		isUnique, hasIndex := parseStructFieldSQLTag(tag.Get("sql"))
-
-		fieldInfo := r.FieldInfo{
-			Name:       fieldName,
-			IsPK:       isPK,
-			IsUnique:   isUnique,
-			HasIndex:   hasIndex,
-			Type:       fType,
-			Column:     prefix + column,
-			FieldsPath: fieldsPath,
-		}
-
-		if embedded == "" {
+		if fieldInfo.Embedded == "" {
 			res.Fields = append(res.Fields, fieldInfo)
 		} else {
-			if structFile == "" {
+			if fieldInfo.StructFile == "" {
 				return nil, fmt.Errorf(`reform: %s has field %s of type %s but the file with the referenced structure is not set`, res.Type, fieldName, f.Type)
 			}
 
 			ident := f.Type.(*ast.Ident)
 
 			var nestedFieldsPath []r.FieldInfo
-			switch embedded {
+			switch fieldInfo.Embedded {
 			case "embedded":
 				nestedFieldsPath = fieldsPath
 			case "prefixed":
 				nestedFieldsPath = append(fieldsPath, fieldInfo)
 			default:
-				return nil, fmt.Errorf(`reform: unknown "embedded" value: %v`, embedded)
+				return nil, fmt.Errorf(`reform: unknown "embedded" value: %v`, fieldInfo.Embedded)
 			}
-			structInfos, err := file(structFile, &imitateGorm, nestedFieldsPath, true)
+			structInfos, err := file(fieldInfo.StructFile, &imitateGorm, nestedFieldsPath, true)
 			if err != nil {
-				return nil, fmt.Errorf(`reform: %s has field %s of type %s that uses file %s. Got error while parsing the file: %s`, res.Type, fieldName, f.Type, structFile, err.Error())
+				return nil, fmt.Errorf(`reform: %s has field %s of type %s that uses file %s. Got error while parsing the file: %s`, res.Type, fieldName, f.Type, fieldInfo.StructFile, err.Error())
 			}
 
 			found := false
@@ -186,7 +174,7 @@ func parseStructTypeSpec(ts *ast.TypeSpec, str *ast.StructType, imitateGorm bool
 				}
 			}
 			if !found {
-				return nil, fmt.Errorf(`reform: %s has field %s that references to file %s, but the file doesn't have a structure %s`, res.Type, fieldName, structFile, f.Type)
+				return nil, fmt.Errorf(`reform: %s has field %s that references to file %s, but the file doesn't have a structure %s`, res.Type, fieldName, fieldInfo.StructFile, f.Type)
 			}
 		}
 	}

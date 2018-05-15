@@ -2,6 +2,7 @@
 package mysql
 
 import (
+	"fmt"
 	"github.com/xaionaro/reform"
 )
 
@@ -48,6 +49,9 @@ func (mysql) ColumnTypeForField(field reform.FieldInfo) string {
 	case "int64":
 		return "bigint"
 	case "string":
+		if field.SQLSize > 0 && field.SQLSize < 256 {
+			return fmt.Sprintf("varchar(%d)", field.SQLSize)
+		}
 		return "text"
 	default:
 		return "text"
@@ -74,21 +78,20 @@ func (mysql) ColumnDefinitionForField(field reform.FieldInfo) string {
 	}
 
 	if field.IsUnique {
-		panic("Is not implemented, yet")
+			definition += " UNIQUE"
 	}
 
 	if !canBeNull {
 		definition += " NOT NULL"
+	}
+	if field.HasIndex {
+			definition += ", INDEX (`"+field.Column+"`)"
 	}
 
 	return definition
 }
 
 func (mysql) ColumnDefinitionPostQueryForField(structInfo reform.StructInfo, field reform.FieldInfo) string {
-	if field.HasIndex {
-		panic("Is not implemented, yet")
-	}
-
 	return ""
 }
 

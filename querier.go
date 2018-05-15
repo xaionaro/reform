@@ -263,10 +263,14 @@ func (querier Querier) CreateTableIfNotExists(structInfo StructInfo) (bool, erro
 		if field.Column == "" {
 			continue
 		}
-		postQueries = append(postQueries, querier.Dialect.ColumnDefinitionPostQueryForField(structInfo, field))
+		postQuery := querier.Dialect.ColumnDefinitionPostQueryForField(structInfo, field)
+		if postQuery == "" {
+			continue
+		}
+		postQueries = append(postQueries, postQuery)
 	}
 
-	_, err := querier.Exec(request + ";" + strings.Join(postQueries, ";"))
+	_, err := querier.Exec(request + "; " + strings.Join(postQueries, "; "))
 	return false, err
 }
 

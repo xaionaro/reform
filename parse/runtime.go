@@ -79,29 +79,27 @@ func object(t reflect.Type, schema, table string, imitateGorm bool, fieldsPath [
 		// getting field name
 		fieldName := f.Name
 
+		// getting FieldInfo
+		fType := objectGoType(f.Type, t)
+		fieldInfo := r.FieldInfo{
+			Name:       fieldName,
+			Type:       fType,
+			FieldsPath: fieldsPath,
+		}
+		fieldInfo.ConsiderTag(imitateGorm, fieldName, tag)
+
 		// check for exported name
 		if f.PkgPath != "" {
 			return nil, fmt.Errorf(`reform: %s has non-exported reform-active field "%s", it is not allowed`, res.Type, fieldName)
 		}
 
-		// parse tag and type
-		var column string
-		var isPK bool
-		var embedded string
-		var structFile string
-		if imitateGorm {
-			column, isPK, embedded, structFile = r.ParseStructFieldGormTag(tagString, fieldName)
-		} else {
-			column, isPK, embedded, structFile = r.ParseStructFieldTag(tagString)
-		}
-		if isPK && (embedded != "") {
+		if fieldInfo.IsPK && (fieldInfo.Embedded != "") {
 			return nil, fmt.Errorf(`reform: %s has field %s that is the primary key and an embedded structure in the same time`, res.Type, f.Type)
 		}
-		if column == "" && embedded == "" {
+		if fieldInfo.Column == "" && fieldInfo.Embedded == "" {
 			return nil, fmt.Errorf(`reform: %s has field %s with invalid "reform:"/"gorm:" tag value, it is not allowed`, res.Type, fieldName)
 		}
-		fType := objectGoType(f.Type, t)
-		if isPK {
+		if fieldInfo.IsPK {
 			if strings.HasPrefix(fType, "*") {
 				return nil, fmt.Errorf(`reform: %s has pointer field %s with "pk" label in "reform:" tag, it is not allowed`, res.Type, fieldName)
 			}
@@ -113,38 +111,28 @@ func object(t reflect.Type, schema, table string, imitateGorm bool, fieldsPath [
 			}
 		}
 
-		isUnique, hasIndex := parseStructFieldSQLTag(tag.Get("sql"))
+		fieldInfo.Column = prefix + fieldInfo.Column
 
-		fieldInfo := r.FieldInfo{
-			Name:       fieldName,
-			IsPK:       isPK,
-			IsUnique:   isUnique,
-			HasIndex:   hasIndex,
-			Type:       fType,
-			Column:     prefix + column,
-			FieldsPath: fieldsPath,
-		}
-
-		if embedded == "" {
+		if fieldInfo.Embedded == "" {
 			res.Fields = append(res.Fields, fieldInfo)
 		} else {
 			var nestedFieldsPath []r.FieldInfo
-			switch embedded {
+			switch fieldInfo.Embedded {
 			case "embedded":
 				nestedFieldsPath = fieldsPath
 			case "prefixed":
 				nestedFieldsPath = append(fieldsPath, fieldInfo)
 			default:
-				return nil, fmt.Errorf(`reform: unknown "embedded" value: %v`, embedded)
+				return nil, fmt.Errorf(`reform: unknown "embedded" value: %v`, fieldInfo.Embedded)
 			}
 
 			structInfo, err := object(f.Type, "", "", imitateGorm, nestedFieldsPath)
 			if err != nil {
-				return nil, fmt.Errorf(`reform: %s has field %s of type %s. Got error while getting structure information of the object: %s`, res.Type, fieldName, f.Type, structFile, err.Error())
+				return nil, fmt.Errorf(`reform: %s has field %s of type %s. Got error while getting structure information of the object: %s`, res.Type, fieldName, f.Type, fieldInfo.StructFile, err.Error())
 			}
 			res.Fields = append(res.Fields, structInfo.Fields...)
 		}
-		if isPK {
+		if fieldInfo.IsPK {
 			res.PKFieldIndex = n
 		}
 		n++

@@ -9,7 +9,6 @@ import (
 	"fmt"
 	r "github.com/xaionaro/reform"
 	"reflect"
-	"strings"
 )
 
 // FieldInfo represents information about struct field.
@@ -65,24 +64,6 @@ func AssertUpToDate(si *r.StructInfo, obj interface{}) {
 	if !reflect.DeepEqual(si, si2) {
 		panic(msg)
 	}
-}
-
-// parseStructFieldSQLTag is used by both file and runtime parsers to parse "sql" tags
-func parseStructFieldSQLTag(tag string) (isUnique bool, hasIndex bool) {
-	parts := strings.Split(tag, ",")
-
-	for _, part := range parts {
-		switch part {
-		case "unique_index":
-			isUnique = true
-		case "index":
-			hasIndex = true
-		default:
-			// TODO: notify about the error
-		}
-	}
-
-	return
 }
 
 // checkFields is used by both file and runtime parsers

@@ -5,6 +5,8 @@ import (
 	"database/sql/driver"
 	"errors"
 	"github.com/jinzhu/gorm"
+	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -29,6 +31,9 @@ type FieldInfo struct {
 	Type       string      // field type as defined in source file, e.g. string
 	Column     string      // SQL database column name from "reform:" struct field tag, e.g. name
 	FieldsPath []FieldInfo // A path to the field via nested structures
+	SQLSize    int
+	Embedded   string
+	StructFile string
 }
 
 func (f FieldInfo) FullName() string {
@@ -38,6 +43,52 @@ func (f FieldInfo) FullName() string {
 	}
 
 	return prefix + f.Name
+}
+
+// parseStructFieldSQLTag is used by both file and runtime parsers to parse "sql" tags
+func parseStructFieldSQLTag(tag string) (isUnique bool, hasIndex bool) {
+	parts := strings.Split(tag, ",")
+
+	for _, part := range parts {
+		switch part {
+		case "unique_index":
+			isUnique = true
+		case "index":
+			hasIndex = true
+		default:
+			// TODO: notify about the error
+		}
+	}
+
+	return
+}
+
+func (f *FieldInfo) ConsiderTag(imitateGorm bool, fieldName string, tag reflect.StructTag) {
+		var column string
+		var isPK bool
+		var embedded string
+		var structFile string
+		if imitateGorm {
+			column, isPK, embedded, structFile = ParseStructFieldGormTag(tag.Get("gorm"), fieldName)
+		} else {
+			column, isPK, embedded, structFile = ParseStructFieldTag(tag.Get("reform"))
+		}
+		isUnique, hasIndex := parseStructFieldSQLTag(tag.Get("sql"))
+		sqlSizeString := tag.Get("sql_size")
+		if sqlSizeString != "" {
+			sqlSize, err := strconv.Atoi(sqlSizeString)
+			if err != nil {
+				panic(err)
+			}
+			f.SQLSize = sqlSize
+		}
+
+		f.Column     = column
+		f.IsPK       = isPK
+		f.Embedded   = embedded
+		f.StructFile = structFile
+		f.IsUnique   = isUnique
+		f.HasIndex   = hasIndex
 }
 
 // StructInfo represents information about struct.
