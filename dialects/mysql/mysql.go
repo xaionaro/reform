@@ -41,6 +41,12 @@ func (mysql) DefaultValuesMethod() reform.DefaultValuesMethod {
 }
 
 func (mysql) ColumnTypeForField(field reform.FieldInfo) string {
+	if len(field.Type) == 0 {
+		return "text"
+	}
+	if field.Type[:1] == "*" {
+		field.Type = field.Type[1:]
+	}
 	switch field.Type {
 	case "time.Time", "extime.Time":
 		return "timestamp"
