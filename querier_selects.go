@@ -3,6 +3,7 @@ package reform
 import (
 	"database/sql"
 	"fmt"
+	mysqlDriver "github.com/go-sql-driver/mysql"
 	"strings"
 )
 
@@ -70,8 +71,15 @@ func (q *Querier) selectQuery(view View, tail string, limit1 bool, forceAnotherT
 // and AfterFind() errors.
 func (q *Querier) FlexSelectOneTo(str Struct, forceAnotherTable *string, forceFields []string, tail string, args ...interface{}) error {
 	query := q.selectQuery(str.View(), tail, true, forceAnotherTable, forceFields)
-	if err := q.QueryRow(query, args...).Scan(str.FieldPointersByNames(forceFields)...); err != nil {
-		return err
+	for {
+		err := q.QueryRow(query, args...).Scan(str.FieldPointersByNames(forceFields)...)
+		if err == mysqlDriver.ErrInvalidConn {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		break
 	}
 
 	return q.callStructMethod(str, "AfterFind")
