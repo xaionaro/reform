@@ -334,9 +334,9 @@ func (s *{{ .ScopeType }}) DB(db reform.ReformDBTX) *{{ .ScopeType }} {
 }
 
 // Gets DB
-func (s {{ .Type }}) Get{{ if eq .ImitateGorm true }}Reform{{ end }}DB() (db reform.ReformDBTX) { return s.Scope().Get{{ if eq .ImitateGorm true }}Reform{{ end }}DB() }
-func (s {{ .ScopeType }}) Get{{ if eq .ImitateGorm true }}Reform{{ end }}DB() reform.ReformDBTX {
-	return s.db
+func (s {{ .Type }}) Get{{ if eq .ImitateGorm true }}Reform{{ end }}DB() (db *reform.DB) { return s.Scope().Get{{ if eq .ImitateGorm true }}Reform{{ end }}DB() }
+func (s {{ .ScopeType }}) Get{{ if eq .ImitateGorm true }}Reform{{ end }}DB() *reform.DB {
+	return s.db.(*reform.DB)
 }
 
 func (s {{ .Type }}) StartTransaction() (*reform.TX, error) { return s.Scope().StartTransaction() }
@@ -593,7 +593,7 @@ func (s *{{ .ScopeType }}) callStructMethod(str *{{ .Type }}, methodName string)
 		case func():
 			f()
 
-		case func(reform.DBTX):
+		case func(reform.ReformDBTX):
 			f(s.db)
 
 		case func(*{{ .ScopeType }}):
@@ -605,7 +605,7 @@ func (s *{{ .ScopeType }}) callStructMethod(str *{{ .Type }}, methodName string)
 		case func() error:
 			return f()
 
-		case func(reform.DBTX) error:
+		case func(reform.ReformDBTX) error:
 			return f(s.db)
 
 		case func(*{{ .ScopeType }}) error:
