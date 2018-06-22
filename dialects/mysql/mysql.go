@@ -49,7 +49,7 @@ func (mysql) ColumnTypeForField(field reform.FieldInfo) string {
 	}
 	switch field.Type {
 	case "time.Time", "extime.Time":
-		return "timestamp"
+		return "datetime"
 	case "int":
 		return "integer"
 	case "int64":
