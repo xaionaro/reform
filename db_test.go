@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"github.com/AlekSi/pointer"
-	"github.com/enodata/faker"
+	"syreclabs.com/go/faker"
 
 	"github.com/xaionaro/reform"
 	"github.com/xaionaro/reform/dialects/postgresql"

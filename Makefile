@@ -15,7 +15,7 @@ download_deps:
 	# download other deps
 	go get -v -u -d github.com/AlekSi/pointer \
 		github.com/stretchr/testify/... \
-		github.com/enodata/faker \
+		syreclabs.com/go/faker \
 		github.com/alecthomas/gometalinter \
 		github.com/AlekSi/goveralls
 
